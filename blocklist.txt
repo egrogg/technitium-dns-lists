@@ -14,4 +14,3 @@ torproject.org
 fireoscaptiveportal.com
 
 # DNS servers
-tailscale.com
