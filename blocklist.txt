@@ -14,3 +14,11 @@ torproject.org
 fireoscaptiveportal.com
 
 # DNS servers
+
+# Dating Apps
+grindr.com
+pof.com
+plentyoffish.com
+wizzapp.com
+tinder.com
+gotinder.com
