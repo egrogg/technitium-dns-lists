@@ -1,19 +1,4 @@
 # Custom Technitium DNS Blocklist
-# Migrated from AdGuard Home
-
-# Social Media
-reddit.com
-snapchat.com
-discord.com
-
-# Tor-related websites
-tor.com
-torproject.org
-
-# Captive Portal
-fireoscaptiveportal.com
-
-# DNS servers
 
 # Dating Apps
 grindr.com
@@ -22,3 +7,36 @@ plentyoffish.com
 wizzapp.com
 tinder.com
 gotinder.com
+bumble.com
+hinge.co
+badoo.com
+okcupid.com
+
+# Adult Content and Subscription Platforms
+onlyfans.com
+fansly.com
+chaturbate.com
+stripchat.com
+xvideos.com
+xnxx.com
+pornhub.com
+xhamster.com
+
+# Social Media and Messaging
+snapchat.com
+reddit.com
+discord.com
+instagram.com
+threads.net
+tiktok.com
+telegram.org
+web.telegram.org
+kik.com
+ome.tv
+omegle.com
+yubo.live
+
+# Russian Social Media and Email
+mail.ru
+ok.ru
+vk.com
