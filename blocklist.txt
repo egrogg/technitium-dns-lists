@@ -12,3 +12,6 @@ torproject.org
 
 # Captive Portal
 fireoscaptiveportal.com
+
+# DNS servers
+tailscale.com
