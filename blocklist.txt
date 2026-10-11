@@ -1,0 +1,14 @@
+# Custom Technitium DNS Blocklist
+# Migrated from AdGuard Home
+
+# Social Media
+reddit.com
+snapchat.com
+discord.com
+
+# Tor-related websites
+tor.com
+torproject.org
+
+# Captive Portal
+fireoscaptiveportal.com
