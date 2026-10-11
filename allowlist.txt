@@ -1,0 +1,12 @@
+# ==========================================
+# Technitium DNS - Custom Allowlist
+# ==========================================
+# Purpose: Domains explicitly allowed
+# Source: Migrated from AdGuard Home
+# ==========================================
+
+# Tailscale
+tailscale.com
+
+# Twingate
+twingate.com
