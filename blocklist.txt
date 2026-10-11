@@ -44,6 +44,7 @@ vk.com
 # Tor and Anonymity
 tor.com
 torproject.org
+tor-browser.en.softonic.com
 
 # Captive Portal
 fireoscaptiveportal.com
