@@ -113,7 +113,33 @@ dig @192.168.xxx.xx google.com
 ---   
 **Maintenance:** The bootstrap IP addresses are hard-coded and should be reviewed if they stop responding. Unauthenticated bootstrap time has security tradeoffs; protect access to these servers and prefer authenticated synchronization after bootstrapping.  
 
-## 2c. Listed below is a sample of the config file for the Advanced blocking app
+## 2c. Advanced Blocking**  
+Install Advanced Blocking under the apps tab. Note: This may install to the secondary since this is in a cluster, but if it doesn't install also on the secondary DNS
+
+The built-in Technitium blocking feature was disabled on the primary and secondary to avoid overlapping filtering methods. Both DNS servers were tested and returned blocked responses showing NXDOMAIN, with Extended DNS Error identifying advanced-blocking-app and the everyone else group.  
+
+**GitHub-hosted lists**  
+Main blocklist:  
+[https://raw.githubusercontent.com/MYUSERNAME/technitium-dns-lists/main/blocklist.txt](https://raw.githubusercontent.com/egrogg/technitium-dns-lists/main/blocklist.txt)  
+   
+Allowlist:  
+[https://raw.githubusercontent.com/MYUSERNAME/technitium-dns-lists/main/allowlist.txt](https://raw.githubusercontent.com/egrogg/technitium-dns-lists/main/allowlist.txt)  
+   
+The configuration used a **24-hour refresh** interval for lists and an everyone else default group covering IPv4/IPv6 clients.  
+**Other external lists discussed**  
+ [https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt]  
+ [https://raw.githubusercontent.com/MYUSERNAME/technitium-dns-lists/main/firefox-doh-blocklist.txt](https://raw.githubusercontent.com/MYUSERNAME/technitium-dns-lists/main/firefox-doh-blocklist.txt)  
+ [https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts)  
+ [https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts)  
+   
+**Important:** These URLs were discussed as possible sources. Verify the current live Advanced Blocking configuration before treating every URL as enabled. The Hagezi wildcard list and StevenBlack hosts files use different formats; ensure the selected Advanced Blocking fields/parser support each format. Overlapping sources can cause redundant entries.  
+
+**Single policy for everyone**  
+After discussing separate restrictions for children and other clients, the preference was to use **one shared list for everyone** for now. The custom list discussions included dating apps and social platforms, such as Tinder, Plenty of Fish, Wizz, Grindr, OnlyFans, Snapchat, Reddit, Discord, Instagram, mail.ru, and ok.ru.  **Check \*\* blocklist.txt \*\* to see exactly which domains were ultimately committed; this document does not assert that every discussed domain is currently blocked.**  
+
+**Netgear Wi-Fi device**  
+The Wi-Fi device at 192.168.xxx.xx repeatedly queried netgear.com, prompting a request to block that domain. A netgear-restricted group was discussed, but the later stated preference was one list for everyone. Verify whether the separate group is still present before documenting it as active. Blocking the device's netgear.com lookups is distinct from exempting that device from filtering.  
+
 ### In the code below, please note that the netgear-restricted group contains 1 IP which is restricted to this group.  This is because I wanted my wifi to not reach out to netgear.com
 ```bash
 {
@@ -190,40 +216,15 @@ dig @192.168.xxx.xx google.com
 ```
 
 ---
-## 3. Advanced Blocking**  
-Install Advanced Blocking under the apps tab.  
 
-The built-in Technitium blocking feature was disabled on the primary and secondary to avoid overlapping filtering methods. Both DNS servers were tested and returned blocked responses showing NXDOMAIN, with Extended DNS Error identifying advanced-blocking-app and the everyone else group.  
-
-**GitHub-hosted lists**  
-Main blocklist:  
-[https://raw.githubusercontent.com/MYUSERNAME/technitium-dns-lists/main/blocklist.txt](https://raw.githubusercontent.com/egrogg/technitium-dns-lists/main/blocklist.txt)  
-   
-Allowlist:  
-[https://raw.githubusercontent.com/MYUSERNAME/technitium-dns-lists/main/allowlist.txt](https://raw.githubusercontent.com/egrogg/technitium-dns-lists/main/allowlist.txt)  
-   
-The configuration used a **24-hour refresh** interval for lists and an everyone else default group covering IPv4/IPv6 clients.  
-**Other external lists discussed**  
- [https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt]  
- [https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts)  
- [https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts)  
-   
-**Important:** These URLs were discussed as possible sources. Verify the current live Advanced Blocking configuration before treating every URL as enabled. The Hagezi wildcard list and StevenBlack hosts files use different formats; ensure the selected Advanced Blocking fields/parser support each format. Overlapping sources can cause redundant entries.  
-
-**Single policy for everyone**  
-After discussing separate restrictions for children and other clients, the preference was to use **one shared list for everyone** for now. The custom list discussions included dating apps and social platforms, such as Tinder, Plenty of Fish, Wizz, Grindr, OnlyFans, Snapchat, Reddit, Discord, Instagram, mail.ru, and ok.ru.  **Check \*\* blocklist.txt \*\* to see exactly which domains were ultimately committed; this document does not assert that every discussed domain is currently blocked.**  
-
-**Netgear Wi-Fi device**  
-The Wi-Fi device at 192.168.101.30 repeatedly queried netgear.com, prompting a request to block that domain. A netgear-restricted group was discussed, but the later stated preference was one list for everyone. Verify whether the separate group is still present before documenting it as active. Blocking the device's netgear.com lookups is distinct from exempting that device from filtering.  
-
-## 5. DNS client configuration and failover**  
+## 3. DNS client configuration and failover**  
 For client networks intended to use both servers, advertise the following DNS servers through DHCP:  
 192.168.xxx.xx  
  192.168.xxx.xx  
    
 **Important:** A client configured with only .72 does  **not** automatically switch to .73 simply because the Technitium servers are clustered. Clients need both DNS server addresses (or a separate highly available virtual DNS address). Different operating systems choose between advertised resolvers differently, so test failover rather than assuming strict primary/secondary ordering.  
 
-## 6. DNS bypass prevention — network layer**  
+## 4. DNS bypass prevention — network layer**  
 
 **Earlier verified setup:** DNS enforcement was tested with AdGuard Home at 192.168.101.90, including allowing that server upstream DNS traffic while blocking direct client DNS to outside resolvers.  **The rules below are the updated Technitium design, not a verified export of your current firewall.**  
 Recommended per-client-VLAN logic:
@@ -246,7 +247,7 @@ A DNS domain list can block some known DoH resolver names, but cannot guarantee 
 **Do not block \*\* use-application-dns.net \*\* for the purpose of disabling Firefox DoH**; Firefox uses it as a network signal to disable default DoH behavior under applicable conditions.  
 See [firewall-rules.md for your firewall reference and ](file:///home/ubuntu/Downloads/firewall-rules.md)[dns-exceptions.md for device exception notes.](file:///home/ubuntu/Downloads/dns-exceptions.md)  
 
-## 7. TVs, games, Discord, and exceptions**  
+## 5. TVs, games, Discord, and exceptions**  
 During earlier DNS enforcement testing, TVs lost connectivity, and some games and Discord had issues. Moving TV exception rules above the blocking rules helped in the prior firewall setup. The exact active rule set and root cause of each application issue have **not** been established for the Technitium migration.  
 Troubleshooting sequence:
 
@@ -261,7 +262,7 @@ Troubleshooting sequence:
 5. Add narrow, documented exceptions only when evidence identifies a legitimate false positive.  
 Allowing a device to query .72/.73 does **not** exempt it from Technitium's Advanced Blocking policy.  
 
-## 8. Validation checklist**  
+## 6. Validation checklist**  
 Run from a **client VLAN** with DNS restrictions in place:
 
 # Both approved DNS servers should answer
@@ -286,7 +287,7 @@ dig @8.8.8.8 example.com
 ---
 Also check the Technitium query log for blocked domains and the blocking-app identifier. Test IPv4 and IPv6 separately **if IPv6 is enabled**; this environment was intended to operate without IPv6 on affected clients. Test both UDP and TCP DNS separately. Verify the secondary still resolves queries when the primary is intentionally unavailable.  
 
-## 9. Repository structure**  
+## 7. Repository structure**  
 technitium-dns-lists/  
  ├── README.md  
  ├── blocklist.txt  
@@ -298,7 +299,7 @@ technitium-dns-lists/
    
 \*The tree above is the intended organization, \* ***not a claim that every file is currently committed*** *.*  
 
-## 10. Outstanding checks**
+## 8. Outstanding checks**
 
 - Confirm Advanced Blocking group configuration on both nodes and whether netgear-restricted still exists.
 
