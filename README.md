@@ -11,10 +11,9 @@ Secondary Technitium DNS: 192.168.XXX.XX
 ## Repository Contents
 
 - blocklist.txt — Main DNS filtering list
+- allowlist.txt  — Main DNS allow list
 - firefox-doh-blocklist.txt — DoH resolver domains
 - firewall-rules.md — Firewall DNS enforcement
-- vlan-dns-enforcement.md — VLAN configuration
-- dns-exceptions.md — Device exceptions
 
 ## Security Goals
 
