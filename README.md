@@ -5,8 +5,8 @@ Home network DNS filtering and DNS bypass prevention.
 
 ## DNS Infrastructure
 
-Primary Technitium DNS: 192.168.XXX.XX
-Secondary Technitium DNS: 192.168.XXX.XX
+Primary Technitium DNS: 192.168.XXX.XX  
+Secondary Technitium DNS: 192.168.XXX.XX  
 
 ## Repository Contents
 
