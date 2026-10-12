@@ -122,7 +122,7 @@ dig @192.168.xxx.xx google.com
   "blockListUrlUpdateIntervalMinutes": 5,
   "localEndPointGroupMap": {},
   "networkGroupMap": {
-    "192.168.101.30": "netgear-restricted",
+    "192.168.xxx.xx": "netgear-restricted",
     "0.0.0.0/0": "everyone else",
     "[::]/0": "everyone else"
   },
