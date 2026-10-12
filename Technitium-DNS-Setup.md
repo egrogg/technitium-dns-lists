@@ -122,7 +122,7 @@ dig @192.168.xxx.xx google.com
   "blockListUrlUpdateIntervalMinutes": 5,
   "localEndPointGroupMap": {},
   "networkGroupMap": {
-    "192.168.xxx.xx": "netgear-restricted",
+    "192.168.xxx.xx": "netgear-restricted", #THIS IS THE IP OF THE WIFI THAT IS BEING BLOCKED FOR www.netgear.com
     "0.0.0.0/0": "everyone else",
     "[::]/0": "everyone else"
   },
@@ -146,7 +146,7 @@ dig @192.168.xxx.xx google.com
       "blockListUrls": [
         "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt",
         "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts",
-
+        "https://raw.githubusercontent.com/MYUSERNAME/technitium-dns-lists/main/firefox-doh-blocklist.txt",
         "https://raw.githubusercontent.com/MYUSERNAME/technitium-dns-lists/main/blocklist.txt"
       ],
       "allowedRegex": [],
@@ -166,7 +166,8 @@ dig @192.168.xxx.xx google.com
       ],
       "allowed": [],
       "blocked": [
-        "www.netgear.com"
+        "www.netgear.com",
+        "pof.com"
       ],
       "allowListUrls": [
         "https://raw.githubusercontent.com/MYUSERNAME/technitium-dns-lists/main/allowlist.txt"
@@ -174,6 +175,7 @@ dig @192.168.xxx.xx google.com
       "blockListUrls": [
         "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt",
         "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts",
+        "https://raw.githubusercontent.com/MYUSERNAME/technitium-dns-lists/main/firefox-doh-blocklist.txt",
         "https://raw.githubusercontent.com/MYUSERNAME/technitium-dns-lists/main/blocklist.txt"
       ],
       "allowedRegex": [],
