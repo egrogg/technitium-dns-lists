@@ -35,4 +35,15 @@ Technitium's cluster has:
 
 Since I am writing this now, hopefully you are downloading and installing version than 15.4 or newer. Technitium clustering is available in v15.4, and the nodes remain independently functioning DNS servers while the cluster synchronizes configuration.  
 
-Step 1 — Decide on your Cluster Domain
+## Step 1 — Decide on your Cluster Domain  
+You need a domain name for the cluster. Since this is a private/home/internal DNS setup, you can use something like:
+|||  
+|-|-|  
+| Item | Configuration |  
+|Cluster domain |	dns.MYDOMAIN.com|  
+|Primary cluster hostname |	dns.dns.MYDOMAIN.com|  
+|Secondary cluster hostname |	ubuntu.dns.MYDOMAIN.com|  
+
+You do not need to create these DNS records yourself. Technitium creates/manages them as part of the cluster.  
+
+## Step 2 — Check the Primary first
