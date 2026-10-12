@@ -139,13 +139,14 @@ dig @192.168.xxx.xx google.com
       "allowed": [],
       "blocked": [
         "pof.com"
-],
+      ],
       "allowListUrls": [
         "https://raw.githubusercontent.com/MYUSERNAME/technitium-dns-lists/main/allowlist.txt"
       ],
       "blockListUrls": [
         "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt",
         "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts",
+
         "https://raw.githubusercontent.com/MYUSERNAME/technitium-dns-lists/main/blocklist.txt"
       ],
       "allowedRegex": [],
