@@ -1,5 +1,5 @@
-##Technitium DNS — Home Network Configuration**  
-#Configuration notes based on the Technitium work completed in September–October 2026. \* **Verified changes** \* and \* **planned/recommended changes** \* are identified separately. This is a reconstruction, not an export of the live configuration.*  
+**Technitium DNS — Home Network Configuration**  
+*Configuration notes based on the Technitium work completed in September–October 2026. \* **Verified changes** \* and \* **planned/recommended changes** \* are identified separately. This is a reconstruction, not an export of the live configuration.*  
 **1. Environment**  
 | | |  
 |-|-|
@@ -14,7 +14,7 @@
 | HTTPS admin port | 53443 |  
 | Custom lists repository | [https://github.com/MYUSERNAME/technitium-dns-lists](https://github.com/egrogg/technitium-dns-lists) |  
  
-##Verified:## The two Technitium servers were joined into a cluster. The primary showed connected and the secondary showed its secondary/self role.   
+**Verified:** The two Technitium servers were joined into a cluster. The primary showed connected and the secondary showed its secondary/self role.   
 Cluster-related zones included dns.MYDOMAIN.com and cluster-catalog.dns.MYDOMAIN.com.  
 
 **2. Cluster setup and troubleshooting**
@@ -37,15 +37,29 @@ Cluster-related zones included dns.MYDOMAIN.com and cluster-catalog.dns.MYDOMAIN
 **Useful checks**
 
 # Check name resolution against each node
+## 1. Node-Specific Resolution Check
 
- dig @192.168.xxx.xx dns.dns.MYDOMAIN.com A  
- dig @192.168.xxx.xx dns.dns.MYDOMAIN.com A  
-   
- \# Test recursive resolution on both nodes  
- dig @192.168.xxx.xx example.com  
- dig @192.168.xxx.xx example.com  
-   
- \# On a DNS server, inspect listening ports  
+Use these commands to verify name resolution against each individual node:
+
+```bash
+# Check name resolution against each node
+dig @192.168.xxx.xx dns.dns.MYDOMAIN.com A  
+dig @192.168.xxx.xx dns.dns.MYDOMAIN.com A  
+```
+
+---
+
+## 2. Recursive Resolution Testing
+
+Run these commands to verify that external recursion is working properly across both nodes:
+
+```bash
+# Test recursive resolution on both nodes
+dig @192.168.xxx.xx example.com
+dig @192.168.xxx.xx example.com
+```
+
+\# On a DNS server, inspect listening ports  
  sudo ss -lntup | grep -E ':(53|5380|53443)\\b'  
    
  \# Inspect local firewall configuration  
@@ -56,13 +70,20 @@ Cluster-related zones included dns.MYDOMAIN.com and cluster-catalog.dns.MYDOMAIN
 **3. Secondary DNSSEC / Chrony time fix**  
 **Verified:** The secondary initially returned SERVFAIL for signed domains with an Extended DNS Error of  **Signature Not Yet Valid**. Its clock was not synchronized. NTS/TLS certificate checks also failed because the clock was far behind, creating a circular dependency.  
 The working fix on the secondary included these Chrony settings:  
+```bash
 **/etc/chrony/chrony.conf**  
 authselectmode ignore  
  makestep 1 3  
-   
+```
+
+---
+```bash
 **/etc/chrony/sources.d/bootstrap-ip.sources**  
 server 91.189.91.111 iburst trust  
- server 185.125.190.121 iburst trust  
+server 185.125.190.121 iburst trust  
+```
+
+---
    
 These IP-based bootstrap sources allowed the system to correct its clock without first requiring working DNS or a valid TLS time check. The clock was corrected, and the regular Ubuntu time sources could then operate.  
 Verification commands:  
