@@ -8,8 +8,8 @@
 |Primary | 192.168.xxx.xx (Ubuntu Server)|  
 |Secondary | 192.168.xxx.xx (Ubuntu Server)|  
 |Cluster domain|dns.MYDOMAIN.com|  
-|Primary cluster hostname |dns.dns.MYDOMAIN.com |  
-| Secondary cluster hostname | ubuntu.dns.MYDOMAIN.com |  
+|Primary cluster hostname |primary.dns.MYDOMAIN.com |  
+| Secondary cluster hostname | secondary.dns.MYDOMAIN.com |  
 | HTTP admin port | 5380 |  
 | HTTPS admin port | 53443 |  
 | Custom lists repository | [https://github.com/MYUSERNAME/technitium-dns-lists](https://github.com/egrogg/technitium-dns-lists) |  
@@ -25,7 +25,7 @@ Cluster-related zones included dns.MYDOMAIN.com and cluster-catalog.dns.MYDOMAIN
 
 3. Joined the secondary (192.168.xxx.xx) to the primary.
 
-4. Investigated a failed join caused by a DANE TLSA lookup/certificate validation error for dns.dns.MYDOMAIN.com:53443.
+4. Investigated a failed join caused by a DANE TLSA lookup/certificate validation error for primary.dns.MYDOMAIN.com:53443.
 
 5. Confirmed the cluster hostname's DNS A record pointed to 192.168.xxx.xx.
 
