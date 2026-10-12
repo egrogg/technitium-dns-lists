@@ -14,6 +14,7 @@ Secondary Technitium DNS: 192.168.XXX.XX
 - allowlist.txt  — Main DNS allow list
 - firefox-doh-blocklist.txt — DoH resolver domains
 - firewall-rules.md — Firewall DNS enforcement
+- Technitium-DNS-Setup.md — Main setup for the DNS
 
 ## Security Goals
 
