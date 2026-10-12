@@ -114,6 +114,7 @@ dig @192.168.xxx.xx google.com
 **Maintenance:** The bootstrap IP addresses are hard-coded and should be reviewed if they stop responding. Unauthenticated bootstrap time has security tradeoffs; protect access to these servers and prefer authenticated synchronization after bootstrapping.  
 
 ## 2c. Listed below is a sample of the config file for the Advanced blocking app
+### In the code below, please note that the netgear-restricted group contains 1 IP which is restricted to this group.  This is because I wanted my wifi to not reach out to netgear.com
 ```bash
 {
   "enableBlocking": true,
@@ -122,7 +123,7 @@ dig @192.168.xxx.xx google.com
   "blockListUrlUpdateIntervalMinutes": 5,
   "localEndPointGroupMap": {},
   "networkGroupMap": {
-    "192.168.xxx.xx": "netgear-restricted", #THIS IS THE IP OF THE WIFI THAT IS BEING BLOCKED FOR www.netgear.com
+    "192.168.xxx.xx": "netgear-restricted",
     "0.0.0.0/0": "everyone else",
     "[::]/0": "everyone else"
   },
