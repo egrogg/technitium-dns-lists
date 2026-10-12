@@ -42,7 +42,7 @@ Create a Firewall Allias for URLs
 5. PASS — 192.168.XXX.XX to VLAN net, TCP/UDP 53
 6. REJECT — VLAN net to any other destination, TCP/UDP 53
 7. REJECT — VLAN net to any destination, TCP/UDP 853
-8. ## this one may interfere with PC's that game as they use som of the DoH_servers listed below REJECT — VLAN net to DoH_Servers, TCP 443
+8. The below may interfere with PC's that game as they use som of the DoH_servers listed below REJECT — VLAN net to DoH_Servers, TCP 443
 9. REJECT — VLAN net to DoH_Blocklist, TCP 443
 10. PASS — Normal permitted traffic
 
