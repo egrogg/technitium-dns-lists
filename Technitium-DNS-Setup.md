@@ -158,14 +158,19 @@ Allowing a device to query .72/.73 does **not** exempt it from Technitium's Adva
 Run from a **client VLAN** with DNS restrictions in place:
 
 # Both approved DNS servers should answer
+```bash
+ dig @192.168.xxx.xx example.com  
+ dig @192.168.xxx.xx example.com  
+```
 
- dig @192.168.xxx.xx example.com  
- dig @192.168.xxx.xx example.com  
-   
+---   
  \# Direct external DNS should be blocked if firewall enforcement is active  
  \# A timeout is expected in a DROP configuration; REJECT may fail immediately.  
- dig @8.8.8.8 example.com  
-   
+```bash
+dig @8.8.8.8 example.com  
+```
+
+---   
  \# Check the currently assigned DNS resolvers on Ubuntu  
  resolvectl status  
    
@@ -189,7 +194,7 @@ technitium-dns-lists/
 
 - Confirm the contents of the committed GitHub blocklist and allowlist.
 
-- Verify current firewall rules reference .72 and .73, not the older AdGuard .90 address.
+- Verify current firewall rules reference .xx and .xx, not the older AdGuard .90 address.
 
 - Test DHCP distribution and DNS failover on each client VLAN.
 
