@@ -41,9 +41,53 @@ You need a domain name for the cluster. Since this is a private/home/internal DN
 |-|-|  
 | Item | Configuration |  
 |Cluster domain |	dns.MYDOMAIN.com|  
-|Primary cluster hostname |	dns.dns.MYDOMAIN.com|  
-|Secondary cluster hostname |	ubuntu.dns.MYDOMAIN.com|  
+|Primary cluster hostname |	primary.dns.MYDOMAIN.com|  
+|Secondary cluster hostname |	secondary.dns.MYDOMAIN.com|  
 
 You do not need to create these DNS records yourself. Technitium creates/manages them as part of the cluster.  
 
-## Step 2 — Check the Primary first
+## Step 2 — Check the Primary first  
+
+a. Log in to the primary DNS first  
+b. Goto: Settings - General    
+c. Look for: DNS Server Domain  
+d. you can have it say: dns.MYDOMAIN.com  / then save
+e. Goto: Administration - Cluster  
+f. Then click: Initialize  
+g. Select "New Cluster" (Join is for the secondary, we are setting up the primary)  
+    1. Should show three fields:  
+        a. Cluster Domain: dns.groggbible.com  
+        b. Primary Node Address: 192.168.xxx.xx  
+        c. Quick Add: Leave Blank  
+    2. One important thing: The message at the bottom says that initializing the cluster will change the DNS Server Domain Name so the current hostname becomes a subdomain of the cluster domain. Technitium will determine the appropriate node name from the current hostname and update it as part of initialization. This is expected behavior.  
+    3. Click "Initialize"  
+        a. Once you click Initialize, wait for it to finish.  
+        b. One other important point: Technitium says initialization automatically enables HTTPS with a self-signed certificate if HTTPS wasn't already configured. That's normal and part of how the cluster authenticates node-to-node communication.  
+    4. In "Administration" / Cluster this should show the below:
+        a. Node name: "dns.dns.MYDOMAIN.com"  
+        b. IP Address: "192.168.xxx.xx" (This is the IP of your primary Domain)  
+        c. URL: "https://dns.dns.MYDOMAIN.com: 53443/"  
+        d. Type: "Primary"  
+        e: State: "Self"  
+        f: Up Since: shows a date/time group  
+        g. Last seen: blank  
+        h: Last synced: blank  
+    5. Note: you can goto: Settings / General in the primary domain and change it to: "primary.dns.groggbible.com" if you wish but not mandatory, just makes it easier later on to determine which is which.  
+    prim
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
