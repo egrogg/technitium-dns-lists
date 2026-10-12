@@ -3,17 +3,17 @@
 
 ## Approved DNS Servers
 
-Primary: 192.168.XXX.XX
-Secondary: 192.168.XXX.XXX
+Primary: 192.168.XXX.XX  
+Secondary: 192.168.XXX.XXX  
 
 ### Firewall Aliases
 
 ####DoH_Servers — Host/IP alias
-  This is optional but gets some of the DoH servers that are normally used.
-  Create a Firewall Alias for IP list
-  Name: DoH_Servers
-  Description:  Known public DNS / DoH servers
-  Type: Host(s)
+  This is optional but gets some of the DoH servers that are normally used.  
+  Create a Firewall Alias for IP list  
+  Name: DoH_Servers  
+  Description:  Known public DNS / DoH servers  
+  Type: Host(s)  
   Host List to add:
       1.1.1.1
       1.0.0.1
