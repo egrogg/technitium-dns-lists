@@ -6,9 +6,9 @@
 Primary: 192.168.XXX.XX
 Secondary: 192.168.XXX.XXX
 
-## Firewall Aliases
+### Firewall Aliases
 
-#DoH_Servers — Host/IP alias
+####DoH_Servers — Host/IP alias
   This is optional but gets some of the DoH servers that are normally used.
   Create a Firewall Alias for IP list
   Name: DoH_Servers
@@ -24,13 +24,13 @@ Secondary: 192.168.XXX.XXX
       162.159.61.4
       172.64.41.4
 
-#DoH_Blocklist — URL Table (IPs)
+####DoH_Blocklist — URL Table (IPs)
 Create a Firewall Allias for URLs
     Name: DoH_BlockList
     Description: Automatically updated public DoH server IPv4 blocklist
     Type: URL Table (IPs)
     URL Table IPs: https://raw.githubusercontent.com/dibdot/DoH-IP-blocklists/master/doh-ipv4.txt / 1
-            Note: /1 is the nubmer of days this will reach out to update.
+            Note: /1 is the number of days this will reach out to update.
 
 
 ## Firewall Rule Order — Each Client VLAN
@@ -42,22 +42,23 @@ Create a Firewall Allias for URLs
 5. PASS — 192.168.XXX.XX to VLAN net, TCP/UDP 53
 6. REJECT — VLAN net to any other destination, TCP/UDP 53
 7. REJECT — VLAN net to any destination, TCP/UDP 853
-8. The below may interfere with PC's that game as they use som of the DoH_servers listed below REJECT — VLAN net to DoH_Servers, TCP 443
-9. REJECT — VLAN net to DoH_Blocklist, TCP 443
+   
+Number 9 below may interfere with PC's that game as they use som of the DoH_servers listed below REJECT — VLAN net to DoH_Servers, TCP 443
+
+9. REJECT — VLAN net to DoH_Blocklist, TCP 443  (Note: this is optional, this may result in blocking TV's, gaming, and other IoT items)
 10. PASS — Normal permitted traffic
 
 
-## Important Exceptions
+### Important Exceptions
 
-Technitium DNS servers must be permitted to
-reach their configured upstream DNS services.
+Do not apply client DNS restrictions to Technitium's own upstream traffic. Technitium DNS servers must be permitted to
+reach their configured upstream DNS services. This is added in the firewall rule(s) above (4 and 5)
 
-Do not apply client DNS restrictions to
-Technitium's own upstream traffic.
 
-Allow specific device exceptions only where needed.
 
-## VLAN Configuration
+Optional: Allow specific device exceptions only where needed. as rule 9 may block certain systems as noted, but you can put them on a different vLAN without rule 9. This includes different WIFI that is on a different vLAN
+
+### VLAN Configuration
 
 Apply the DNS enforcement rules to every
 client VLAN that requires DNS restrictions.
@@ -68,9 +69,6 @@ Configure DHCP to advertise both Technitium servers.
 
 Rule order matters.
 Exceptions must appear before applicable blocks.
-
-DoH IP blocking can affect other HTTPS services
-sharing those IP addresses.
 
 This setup reduces DNS bypass but does not
 guarantee prevention of every DoH, VPN,
