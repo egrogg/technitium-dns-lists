@@ -36,8 +36,16 @@ Cluster-related zones included dns.MYDOMAIN.com and cluster-catalog.dns.MYDOMAIN
 8. Verified the secondary served replicated cluster records and recursive DNS responses.  
 **Useful checks**
 
-# Check name resolution against each node
-## 1. Node-Specific Resolution Check
+
+# Setup of Technitium
+## 1. Setup two DNS servers and make them a cluster.
+See Technitium to get the cluster working.  Listed below is some issues I experienced such as the time fix because I am using Raspberry PI.  
+
+
+## 2. Node-Specific Resolution Check
+
+### Check name resolution against each node
+
 
 Use these commands to verify name resolution against each individual node:
 
@@ -49,7 +57,7 @@ dig @192.168.xxx.xx dns.dns.MYDOMAIN.com A
 
 ---
 
-## 2. Recursive Resolution Testing
+## 2a. Recursive Resolution Testing
 
 Run these commands to verify that external recursion is working properly across both nodes:
 
@@ -59,16 +67,23 @@ dig @192.168.xxx.xx example.com
 dig @192.168.xxx.xx example.com
 ```
 
-\# On a DNS server, inspect listening ports  
- sudo ss -lntup | grep -E ':(53|5380|53443)\\b'  
-   
- \# Inspect local firewall configuration  
- sudo ufw status verbose  
- sudo iptables -S  
+On a DNS server, inspect listening ports  
+```bash
+ sudo ss -lntup | grep -E ':(53|5380|53443)\\b'  
+```
+
+ ---
+Inspect local firewall configuration  
+```bash
+ sudo ufw status verbose  
+ sudo iptables -S
+```
+
+---
    
 ***Security note:*** \* Do not expose the admin ports \* *5380* \* or \* *53443* \* to untrusted networks. Prefer fixing trusted certificate validation over permanently ignoring validation errors.\*  
 
-## 3. Secondary DNSSEC / Chrony time fix**  
+## 2b. Secondary DNSSEC / Chrony time fix**  
 **Verified:** The secondary initially returned SERVFAIL for signed domains with an Extended DNS Error of  **Signature Not Yet Valid**. Its clock was not synchronized. NTS/TLS certificate checks also failed because the clock was far behind, creating a circular dependency.  
 The working fix on the secondary included these Chrony settings:  
 ```bash
@@ -98,8 +113,84 @@ dig @192.168.xxx.xx google.com
 ---   
 **Maintenance:** The bootstrap IP addresses are hard-coded and should be reviewed if they stop responding. Unauthenticated bootstrap time has security tradeoffs; protect access to these servers and prefer authenticated synchronization after bootstrapping.  
 
-## 4. Advanced Blocking**  
-**Verified in October 2026:** Advanced Blocking was installed and active. The built-in Technitium blocking feature was disabled on the primary to avoid overlapping filtering methods. Both DNS servers were tested and returned blocked responses showing NXDOMAIN, with Extended DNS Error identifying advanced-blocking-app and the everyone else group.  
+## 2c. Listed below is a sample of the config file for the Advanced blocking app
+```bash
+{
+  "enableBlocking": true,
+  "blockingAnswerTtl": 30,
+  "blockListUrlUpdateIntervalHours": 0,
+  "blockListUrlUpdateIntervalMinutes": 5,
+  "localEndPointGroupMap": {},
+  "networkGroupMap": {
+    "192.168.101.30": "netgear-restricted",
+    "0.0.0.0/0": "everyone else",
+    "[::]/0": "everyone else"
+  },
+  "groups": [
+    {
+      "name": "everyone else",
+      "enableBlocking": true,
+      "allowTxtBlockingReport": true,
+      "blockAsNxDomain": true,
+      "blockingAddresses": [
+        "0.0.0.0",
+        "::"
+      ],
+      "allowed": [],
+      "blocked": [
+        "pof.com"
+],
+      "allowListUrls": [
+        "https://raw.githubusercontent.com/MYUSERNAME/technitium-dns-lists/main/allowlist.txt"
+      ],
+      "blockListUrls": [
+        "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt",
+        "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts",
+        "https://raw.githubusercontent.com/MYUSERNAME/technitium-dns-lists/main/blocklist.txt"
+      ],
+      "allowedRegex": [],
+      "blockedRegex": [],
+      "regexAllowListUrls": [],
+      "regexBlockListUrls": [],
+      "adblockListUrls": []
+    },
+    {
+      "name": "netgear-restricted",
+      "enableBlocking": true,
+      "allowTxtBlockingReport": true,
+      "blockAsNxDomain": true,
+      "blockingAddresses": [
+        "0.0.0.0",
+        "::"
+      ],
+      "allowed": [],
+      "blocked": [
+        "www.netgear.com"
+      ],
+      "allowListUrls": [
+        "https://raw.githubusercontent.com/MYUSERNAME/technitium-dns-lists/main/allowlist.txt"
+      ],
+      "blockListUrls": [
+        "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt",
+        "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts",
+        "https://raw.githubusercontent.com/MYUSERNAME/technitium-dns-lists/main/blocklist.txt"
+      ],
+      "allowedRegex": [],
+      "blockedRegex": [],
+      "regexAllowListUrls": [],
+      "regexBlockListUrls": [],
+      "adblockListUrls": []
+    }
+  ]
+}
+```
+
+---
+## 3. Advanced Blocking**  
+Install Advanced Blocking under the apps tab.  
+
+The built-in Technitium blocking feature was disabled on the primary and secondary to avoid overlapping filtering methods. Both DNS servers were tested and returned blocked responses showing NXDOMAIN, with Extended DNS Error identifying advanced-blocking-app and the everyone else group.  
+
 **GitHub-hosted lists**  
 Main blocklist:  
 [https://raw.githubusercontent.com/MYUSERNAME/technitium-dns-lists/main/blocklist.txt](https://raw.githubusercontent.com/egrogg/technitium-dns-lists/main/blocklist.txt)  
@@ -109,7 +200,7 @@ Allowlist:
    
 The configuration used a **24-hour refresh** interval for lists and an everyone else default group covering IPv4/IPv6 clients.  
 **Other external lists discussed**  
-https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt  
+ [https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt]  
  [https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts)  
  [https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts)  
    
