@@ -145,8 +145,8 @@ The Wi-Fi device at 192.168.xxx.xx repeatedly queried netgear.com, prompting a r
 {
   "enableBlocking": true,
   "blockingAnswerTtl": 30,
-  "blockListUrlUpdateIntervalHours": 0,
-  "blockListUrlUpdateIntervalMinutes": 5,
+  "blockListUrlUpdateIntervalHours": 24,
+  "blockListUrlUpdateIntervalMinutes": 0,
   "localEndPointGroupMap": {},
   "networkGroupMap": {
     "192.168.xxx.xx": "netgear-restricted",
