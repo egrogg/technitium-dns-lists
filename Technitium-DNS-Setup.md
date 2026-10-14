@@ -233,7 +233,10 @@ dig @192.168.xxx.xx example.com
 
 ## 4. DNS bypass prevention — network layer**  
 
-**Earlier verified setup:** DNS enforcement was tested with AdGuard Home at 192.168.xxx.xx, including allowing that server upstream DNS traffic while blocking direct client DNS to outside resolvers.  **The rules below are the updated Technitium design, not a verified export of my current firewall.**  
+**Earlier verified setup:** DNS enforcement was tested with AdGuard Home at 192.168.xxx.xx, including allowing that server upstream DNS traffic while blocking direct client DNS to outside resolvers.  
+
+**The rules below are the updated Technitium design, of my current firewall.**  
+
 Recommended per-client-VLAN logic:  
 
 1. Allow clients from LAN subnets to 192.168.xxx.xx on TCP/UDP port 53. --Primary DNS
@@ -257,14 +260,18 @@ Recommended per-client-VLAN logic:
 10. Reject clients from LAN subnets to ANY on TCP/UDP port 853 
 
 Note: The below Blocked my TV's, games  
-11. Block clients from LAN subnets to DoH Servers port 443 (HTTPS) -- This has an URL IP table alias that contains known DoH servers (IP addresses). This pulls from: https://raw.githubusercontent.com/dibdot/DoH-IP-blocklists/master/doh-ipv4.txt and updates every day "/1"
+11. Block clients from LAN subnets to DoH Servers port 443 (HTTPS) -- This has an URL IP table alias that contains known DoH servers (IP addresses). This pulls from: https://raw.githubusercontent.com/dibdot/DoH-IP-blocklists/master/doh-ipv4.txt and updates every day "/1".  Since this is breaking my TV connection, Gaming PC's to connect, I have disabled it.  
 
 
-14. Allow other normal permitted traffic.  
-Permit Technitium servers to reach **their actual configured upstream resolvers**, whether using DNS port 53, DoT port 853, or DoH port 443. Place the relevant allowances before broad blocks, and account for rule direction, interface, and stateful firewall behavior.  
-Previously discussed aliases included DoH\_Servers and a DoH\_Blocklist URL Table of approximately 1,968 IPv4 addresses. **Do not copy a historical count or alias as proof of the current list contents.** A GitHub DNS domain list cannot replace firewall IP-based enforcement.  
+12. Allow clients from LAN subnets to ANY on Any  
+
+
+Rules 1-10 Permit Technitium servers to reach **their actual configured upstream resolvers**, whether using DNS port 53, DoT port 853. When implementing, place the relevant allowances before broad blocks, and account for rule direction, interface, and stateful firewall behavior.  
+Previously discussed aliases included DoH Servers URL IP Table of approximately 1,968 IPv4 addresses. **Do not copy a historical count or alias as proof of the current list contents.** A GitHub DNS domain list cannot replace firewall IP-based enforcement.  
+
 **Firefox and DoH**  
 A DNS domain list can block some known DoH resolver names, but cannot guarantee all encrypted DNS bypass is prevented. Firefox may use other providers, and VPNs/proxies or direct IP connections can bypass DNS-domain filtering. On managed Firefox clients, a browser policy to disable DoH is more deterministic.  
+
 **Do not block \*\* use-application-dns.net \*\* for the purpose of disabling Firefox DoH**; Firefox uses it as a network signal to disable default DoH behavior under applicable conditions.  
 See [firewall-rules.md for your firewall reference and ](file:///home/ubuntu/Downloads/firewall-rules.md)[dns-exceptions.md for device exception notes.](file:///home/ubuntu/Downloads/dns-exceptions.md)  
 
