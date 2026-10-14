@@ -84,7 +84,8 @@ Inspect local firewall configuration
 ***Security note:*** \* Do not expose the admin ports \* *5380* \* or \* *53443* \* to untrusted networks. Prefer fixing trusted certificate validation over permanently ignoring validation errors.\*  
 
 ## 2b. Secondary DNSSEC / Chrony time fix**  
-**Verified:** The secondary initially returned SERVFAIL for signed domains with an Extended DNS Error of  **Signature Not Yet Valid**. Its clock was not synchronized. NTS/TLS certificate checks also failed because the clock was far behind, creating a circular dependency.  
+**Verified:** The secondary initially returned SERVFAIL for signed domains with an Extended DNS Error of  **Signature Not Yet Valid**. Its clock was not synchronized. NTS/TLS certificate checks also failed because the clock was far behind, creating a circular dependency.  The reason, in my opinion was because I am using Proxmox VM for the primary and the secondary was on a Raspbery PI 4.  The Raspberry PI with Ubuntu Server installed didn't want to sync the clock.
+
 The working fix on the secondary included these Chrony settings:  
 ```bash
 **/etc/chrony/chrony.conf**  
