@@ -260,37 +260,23 @@ Recommended per-client-VLAN logic:
 10. Reject clients from LAN subnets to ANY on TCP/UDP port 853 
 
 Note: The below Blocked my TV's, games  
-11. Block clients from LAN subnets to DoH Servers port 443 (HTTPS) -- This has an URL IP table alias that contains known DoH servers (IP addresses). This pulls from: https://raw.githubusercontent.com/dibdot/DoH-IP-blocklists/master/doh-ipv4.txt and updates every day "/1".  Since this is breaking my TV connection, Gaming PC's to connect, I have disabled it.  
 
+11. Block clients from LAN subnets to DoH Servers port 443 (HTTPS) -- This has an URL IP table alias that contains known DoH servers (IP addresses). This pulls from: https://raw.githubusercontent.com/dibdot/DoH-IP-blocklists/master/doh-ipv4.txt and updates every day "/1".  Since this is breaking my TV connection, Gaming PC's to connect, I have disabled it.  
 
 12. Allow clients from LAN subnets to ANY on Any  
 
 
 Rules 1-10 Permit Technitium servers to reach **their actual configured upstream resolvers**, whether using DNS port 53, DoT port 853. When implementing, place the relevant allowances before broad blocks, and account for rule direction, interface, and stateful firewall behavior.  
+
 Previously discussed aliases included DoH Servers URL IP Table of approximately 1,968 IPv4 addresses. **Do not copy a historical count or alias as proof of the current list contents.** A GitHub DNS domain list cannot replace firewall IP-based enforcement.  
 
 **Firefox and DoH**  
 A DNS domain list can block some known DoH resolver names, but cannot guarantee all encrypted DNS bypass is prevented. Firefox may use other providers, and VPNs/proxies or direct IP connections can bypass DNS-domain filtering. On managed Firefox clients, a browser policy to disable DoH is more deterministic.  
 
-**Do not block \*\* use-application-dns.net \*\* for the purpose of disabling Firefox DoH**; Firefox uses it as a network signal to disable default DoH behavior under applicable conditions.  
-See [firewall-rules.md for your firewall reference and ](file:///home/ubuntu/Downloads/firewall-rules.md)[dns-exceptions.md for device exception notes.](file:///home/ubuntu/Downloads/dns-exceptions.md)  
 
-## 5. TVs, games, Discord, and exceptions**  
-During earlier DNS enforcement testing, TVs lost connectivity, and some games and Discord had issues. Moving TV exception rules above the blocking rules helped in the prior firewall setup. The exact active rule set and root cause of each application issue have **not** been established for the Technitium migration.  
-Troubleshooting sequence:
 
-1. Check the client's configured DNS server(s).
 
-2. Check Advanced Blocking logs for denied domains.
-
-3. Check firewall logs for port 53, 853, and DoH-IP restrictions.
-
-4. Test whether the problem occurs when using the approved Technitium servers.
-
-5. Add narrow, documented exceptions only when evidence identifies a legitimate false positive.  
-Allowing a device to query .72/.73 does **not** exempt it from Technitium's Advanced Blocking policy.  
-
-## 6. Validation checklist**  
+## 5. Validation checklist**  
 Run from a **client VLAN** with DNS restrictions in place:
 
 # Both approved DNS servers should answer
@@ -327,7 +313,7 @@ technitium-dns-lists/
    
 \*The tree above is the intended organization, \* ***not a claim that every file is currently committed*** *.*  
 
-## 8. Outstanding checks**
+## 6. Outstanding checks**
 
 - Confirm Advanced Blocking group configuration on both nodes and whether netgear-restricted still exists.
 
