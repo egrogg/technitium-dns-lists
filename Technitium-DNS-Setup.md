@@ -256,11 +256,11 @@ Recommended per-client-VLAN logic:
 
 10. Reject clients from LAN subnets to ANY on TCP/UDP port 853 
 
-Note: The below Blocked my TV's, games
-11. Block clients from LAN subnets to DoH Servers port 443 (HTTPS) -- This has an alias that contains known DoH servers (IP addresses) This pulls from: https://raw.githubusercontent.com/dibdot/DoH-IP-blocklists/master/doh-ipv4.txt  
+Note: The below Blocked my TV's, games  
+11. Block clients from LAN subnets to DoH Servers port 443 (HTTPS) -- This has an URL IP table alias that contains known DoH servers (IP addresses). This pulls from: https://raw.githubusercontent.com/dibdot/DoH-IP-blocklists/master/doh-ipv4.txt and updates every day "/1"
 
 
-13. Allow other normal permitted traffic.  
+14. Allow other normal permitted traffic.  
 Permit Technitium servers to reach **their actual configured upstream resolvers**, whether using DNS port 53, DoT port 853, or DoH port 443. Place the relevant allowances before broad blocks, and account for rule direction, interface, and stateful firewall behavior.  
 Previously discussed aliases included DoH\_Servers and a DoH\_Blocklist URL Table of approximately 1,968 IPv4 addresses. **Do not copy a historical count or alias as proof of the current list contents.** A GitHub DNS domain list cannot replace firewall IP-based enforcement.  
 **Firefox and DoH**  
