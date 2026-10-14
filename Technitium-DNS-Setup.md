@@ -218,28 +218,49 @@ The Wi-Fi device at 192.168.xxx.xx repeatedly queried netgear.com, prompting a r
 ---
 
 ## 3. DNS client configuration and failover**  
-For client networks intended to use both servers, advertise the following DNS servers through DHCP:  
+I intended to use both servers, so I am advertising the following DNS servers through DHCP:  
 192.168.xxx.xx  
- 192.168.xxx.xx  
+192.168.xxx.xx  
    
-**Important:** A client configured with only .72 does  **not** automatically switch to .73 simply because the Technitium servers are clustered. Clients need both DNS server addresses (or a separate highly available virtual DNS address). Different operating systems choose between advertised resolvers differently, so test failover rather than assuming strict primary/secondary ordering.  
+**Important:** A client configured with only the primary DNS does  **not** automatically switch to the secondary DNS simply because the Technitium servers are clustered. Clients need both DNS server addresses (or a separate highly available virtual DNS address). Different operating systems choose between advertised resolvers differently, so testing failover found that Linux and Windows will continue to work.  
+What I did to test was turn off the primary and cleared my browser cookies, etc and went to a site.  I also tried using dig to see what came back.  If I disabled the primary, and nothing returned on the primary, but I got a response in the secondary, assumed the secondary took over.  Using a browser still returned the test site(s).  
+
+```bash
+# Test recursive resolution on both nodes
+dig @192.168.xxx.xx example.com
+dig @192.168.xxx.xx example.com
+```
 
 ## 4. DNS bypass prevention — network layer**  
 
-**Earlier verified setup:** DNS enforcement was tested with AdGuard Home at 192.168.101.90, including allowing that server upstream DNS traffic while blocking direct client DNS to outside resolvers.  **The rules below are the updated Technitium design, not a verified export of your current firewall.**  
-Recommended per-client-VLAN logic:
+**Earlier verified setup:** DNS enforcement was tested with AdGuard Home at 192.168.xxx.xx, including allowing that server upstream DNS traffic while blocking direct client DNS to outside resolvers.  **The rules below are the updated Technitium design, not a verified export of my current firewall.**  
+Recommended per-client-VLAN logic:  
 
-1. Allow clients to 192.168.xxx.xx on TCP/UDP port 53.
+1. Allow clients from LAN subnets to 192.168.xxx.xx on TCP/UDP port 53. --Primary DNS
 
-2. Allow clients to 192.168.xxx.xx on TCP/UDP port 53.
+2. Allow clients from LAN subnets to 192.168.xxx.xx on TCP/UDP port 853. --Primary DNS
 
-3. Reject client DNS to other destinations on TCP/UDP port 53.
+3. Allow clients from LAN subnets to 192.168.xxx.xx on TCP/UDP port 53. -- Secondary DNS
 
-4. Reject client DNS-over-TLS on TCP port 853, unless a specific exception is required.
+4. Allow clients from LAN subnets to 192.168.xxx.xx on TCP/UDP port 853. -- Secondary DNS
 
-5. Optionally block **verified** DoH resolver IP addresses on TCP port 443, taking care with shared hosting and application breakage.
+5. Allow clients from 192.168.xxx.xx to Any on TCP/UDP port 53 -- Primary DNS
 
-6. Allow other normal permitted traffic.  
+6. Allow clients from 192.168.xxx.xx to Any on TCP/UDP port 853 -- Primary DNS
+
+7. Allow clients from 192.168.xxx.xx to Any on TCP/UDP port 53 -- Secondary DNS
+
+8. Allow clients from 192.168.xxx.xx to Any on TCP/UDP port 853 -- Secondary DNS
+
+9. Reject clients from LAN subnets to ANY on TCP/UDP port 53 
+
+10. Reject clients from LAN subnets to ANY on TCP/UDP port 853 
+
+Note: The below Blocked my TV's, games
+11. Block clients from LAN subnets to DoH Servers port 443 (HTTPS) -- This has an alias that contains known DoH servers (IP addresses) This pulls from: https://raw.githubusercontent.com/dibdot/DoH-IP-blocklists/master/doh-ipv4.txt  
+
+
+13. Allow other normal permitted traffic.  
 Permit Technitium servers to reach **their actual configured upstream resolvers**, whether using DNS port 53, DoT port 853, or DoH port 443. Place the relevant allowances before broad blocks, and account for rule direction, interface, and stateful firewall behavior.  
 Previously discussed aliases included DoH\_Servers and a DoH\_Blocklist URL Table of approximately 1,968 IPv4 addresses. **Do not copy a historical count or alias as proof of the current list contents.** A GitHub DNS domain list cannot replace firewall IP-based enforcement.  
 **Firefox and DoH**  
