@@ -10,3 +10,6 @@ tailscale.com
 
 # Twingate
 twingate.com
+
+# other
+discord.com
