@@ -11,5 +11,6 @@ tailscale.com
 # Twingate
 twingate.com
 
-# other
+# other Gaming
 discord.com
+ampltd2.medal.tv
