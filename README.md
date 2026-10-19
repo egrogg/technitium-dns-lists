@@ -10,11 +10,12 @@ Secondary Technitium DNS: 192.168.XXX.XX
 
 ## Repository Contents
 
-- blocklist.txt — Main DNS filtering list
-- allowlist.txt  — Main DNS allow list
-- firefox-doh-blocklist.txt — DoH resolver domains
-- firewall-rules.md — Firewall DNS enforcement
-- Technitium-DNS-Setup.md — Main setup for the DNS
+- blocklist.txt — Main DNS filtering list  
+- allowlist.txt  — Main DNS allow list  
+- firefox-doh-blocklist.txt — DoH resolver domains  
+- firewall-rules.md — Firewall DNS enforcement  
+- How to Install Technitium — Installation instructions for Primary and Secondary DSN  
+- Technitium-DNS-Setup.md — Main setup for the DNS  
 
 ## Security Goals
 
@@ -27,12 +28,13 @@ Secondary Technitium DNS: 192.168.XXX.XX
 
 ## Deployment
 
-1. Configure DHCP with both Technitium DNS servers.
-2. Add the DNS domain blocklists to Technitium.
-3. Configure firewall aliases.
-4. Apply firewall rules to client VLANs.
-5. Add tested device exceptions as needed.
-6. Verify DNS resolution and application access.
+1. Install and configure two Technitium DNS Servers. A primary and secondary.  
+2. Configure DHCP with both Technitium DNS servers.  
+3. Add the DNS domain blocklists to Technitium.  
+4. Configure firewall aliases.  
+5. Apply firewall rules to client VLANs.  
+6. Add tested device exceptions as needed.  
+7. Verify DNS resolution and application access.  
 
 ## Notes
 
