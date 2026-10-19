@@ -860,6 +860,15 @@ and the upstream DNS provider.
 10. Save the configuration.
 
 ---
+The following AdGuard DNS-over-TLS forwarders
+are configured in Technitium:
+
+```text
+dns.adguard-dns.com (94.140.14.14:853)
+dns.adguard-dns.com (94.140.15.15:853)
+```
+
+---
 
 ### DNS Forwarder Configuration
 
@@ -870,12 +879,30 @@ The following AdGuard DNS servers are configured:
 | AdGuard DNS | dns.adguard-dns.com | 94.140.14.14 | 853 | DNS over TLS |
 | AdGuard DNS | dns.adguard-dns.com | 94.140.14.15 | 853 | DNS over TLS |
 
-> **Note:** These are the AdGuard DNS servers used
-> in this installation.
->
-> Other DNS providers may be used depending on
-> your security and privacy requirements.
+### Forwarder Settings
 
+| Setting | Configuration |
+|---------|---------------|
+| Forwarder Protocol | DNS-over-TLS |
+| Concurrent Forwarding | Enabled |
+| Forwarder Concurrency | 2 |
+
+These settings allow Technitium to forward DNS
+queries to AdGuard DNS using encrypted connections.
+
+With concurrent forwarding enabled and concurrency
+set to 2, Technitium can query both configured
+forwarders simultaneously.
+
+The server selects forwarders based on their
+average latency and uses the fastest response.
+
+> **Note:** DNS over TLS encrypts DNS traffic
+> between Technitium and AdGuard DNS.
+> It does not automatically encrypt DNS traffic
+> between client devices and Technitium.
+>
+> 
 ---
 
 ### DNS over TLS (DoT)
