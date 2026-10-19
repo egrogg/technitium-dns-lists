@@ -860,6 +860,8 @@ and the upstream DNS provider.
 10. Save the configuration.
 
 ---
+
+### DNS Forwarder Configuration
 The following AdGuard DNS-over-TLS forwarders
 are configured in Technitium:
 
@@ -867,17 +869,6 @@ are configured in Technitium:
 dns.adguard-dns.com (94.140.14.14:853)
 dns.adguard-dns.com (94.140.15.15:853)
 ```
-
----
-
-### DNS Forwarder Configuration
-
-The following AdGuard DNS servers are configured:
-
-| Provider | Hostname | IP Address | Port | Protocol |
-|----------|----------|------------|------|----------|
-| AdGuard DNS | dns.adguard-dns.com | 94.140.14.14 | 853 | DNS over TLS |
-| AdGuard DNS | dns.adguard-dns.com | 94.140.14.15 | 853 | DNS over TLS |
 
 ### Forwarder Settings
 
@@ -901,8 +892,33 @@ average latency and uses the fastest response.
 > between Technitium and AdGuard DNS.
 > It does not automatically encrypt DNS traffic
 > between client devices and Technitium.
+
+For this installation:
+
+```text
+Technitium DNS Server
+         |
+         v
+Concurrent Forwarding
+         |
+    +----+----+
+    |         |
+    v         v
+AdGuard 1   AdGuard 2
+94.140.14.14 94.140.14.15
+    |         |
+    +----+----+
+         |
+         v
+     DNS Response
+```
+
+> **Note:** Concurrent forwarding may send the
+> same DNS query to multiple upstream providers.
 >
-> 
+> This can improve availability but may increase
+> upstream DNS traffic.
+
 ---
 
 ### DNS over TLS (DoT)
@@ -937,58 +953,6 @@ The corresponding IPv4 addresses are:
 >
 > The correct TLS hostname must also be used
 > for certificate validation.
-
----
-
-### Concurrent Forwarding
-
-For this installation, the following settings
-are configured:
-
-| Setting | Configuration |
-|---------|---------------|
-| Concurrent Forwarding | Enabled |
-| Forwarder Concurrency | 2 |
-
-#### What is Concurrent Forwarding?
-
-Concurrent Forwarding allows Technitium to send
-DNS queries to multiple upstream DNS servers
-at the same time.
-
-This can improve DNS responsiveness and availability
-when an upstream resolver is slow or unavailable.
-
-#### What Does Forwarder Concurrency Mean?
-
-A value of `2` allows Technitium to query up to
-two configured forwarders concurrently.
-
-For this installation:
-
-```text
-Technitium DNS Server
-         |
-         v
-Concurrent Forwarding
-         |
-    +----+----+
-    |         |
-    v         v
-AdGuard 1   AdGuard 2
-94.140.14.14 94.140.14.15
-    |         |
-    +----+----+
-         |
-         v
-     DNS Response
-```
-
-> **Note:** Concurrent forwarding may send the
-> same DNS query to multiple upstream providers.
->
-> This can improve availability but may increase
-> upstream DNS traffic.
 
 ---
 
