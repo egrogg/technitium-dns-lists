@@ -834,65 +834,218 @@ with one or more IPv4 addresses.
 
 ## Step 4 - Configure DNS Forwarders
 
-Technitium can resolve DNS queries recursively or
-forward them to another DNS resolver.
+Technitium DNS Server can resolve DNS queries recursively
+or forward requests to another DNS resolver.
 
-For this example, we will configure DNS forwarding.
+For this installation, we will configure DNS forwarding
+using AdGuard DNS with DNS over TLS (DoT).
+
+DNS over TLS encrypts DNS queries between Technitium
+and the upstream DNS provider.
+
+---
 
 ### Configure Forwarders
 
-1. Log in to the Technitium web interface.
+1. Log in to the Technitium DNS web interface.
 2. Navigate to **Settings**.
-3. Navigate to **ProxyAndForwarders**
+3. Select **Proxy & Forwarders**.
 4. Locate the **Forwarders** section.
-5. Select the desired forwarding protocol. You can use the quick select to add. I have added two.
-6. Enter the DNS forwarder addresses.
-7. Save the configuration.
+5. Use **Quick Select** to add the desired DNS providers,
+   or manually enter the forwarder addresses.
+6. Configure the forwarder addresses.
+7. Set **Forwarder Protocol** to **DNS-over-TLS**.
+8. Enable **Concurrent Forwarding**.
+9. Set **Forwarder Concurrency** to `2`.
+10. Save the configuration.
 
-### Example DNS Providers
+---
 
-| Provider | DNS Address | Protocol |
-|----------|-------------|----------|
-| dns.adguard-dns.com | 94.140.14.14:853 | DNS |
-| dns.adguard-dns.com | 94.140.14.15:853 | DNS |
+### DNS Forwarder Configuration
 
-> **Note:** These are examples only.
-> Choose DNS forwarders according to your
-> security, privacy, and filtering requirements.
+The following AdGuard DNS servers are configured:
 
-### DNS over TLS
-This is the **Forwarder Protocol**
-Technitium also supports encrypted upstream
-DNS forwarding using DNS over TLS (DoT). --This is what I have selected
+| Provider | Hostname | IP Address | Port | Protocol |
+|----------|----------|------------|------|----------|
+| AdGuard DNS | dns.adguard-dns.com | 94.140.14.14 | 853 | DNS over TLS |
+| AdGuard DNS | dns.adguard-dns.com | 94.140.14.15 | 853 | DNS over TLS |
 
-DNS over TLS typically uses TCP port `853`.
+> **Note:** These are the AdGuard DNS servers used
+> in this installation.
+>
+> Other DNS providers may be used depending on
+> your security and privacy requirements.
 
-For encrypted forwarding, configure the provider's
-supported hostname and protocol according to
-the Technitium settings.
+---
 
-> **Important:** Do not assume that entering an
-> IP address automatically enables encrypted DNS.
-> The forwarding protocol must be configured correctly.
+### DNS over TLS (DoT)
 
-I have also selected **Concurrent Forwarding**
-And **Forwarder Concurrency** as 2
+Under **Forwarder Protocol**, select:
+
+**DNS-over-TLS**
+
+DNS over TLS uses TCP port `853` by default.
+
+This encrypts DNS queries sent from Technitium
+to the configured upstream DNS provider.
+
+For AdGuard DNS, the TLS hostname is:
+
+```text
+dns.adguard-dns.com
+```
+
+The corresponding IPv4 addresses are:
+
+```text
+94.140.14.14
+94.140.14.15
+```
+
+> **Important:** Configuring a DNS server IP address
+> does not automatically enable encrypted DNS.
+>
+> The **Forwarder Protocol** must be set to
+> **DNS-over-TLS**.
+>
+> The correct TLS hostname must also be used
+> for certificate validation.
+
+---
+
+### Concurrent Forwarding
+
+For this installation, the following settings
+are configured:
+
+| Setting | Configuration |
+|---------|---------------|
+| Concurrent Forwarding | Enabled |
+| Forwarder Concurrency | 2 |
+
+#### What is Concurrent Forwarding?
+
+Concurrent Forwarding allows Technitium to send
+DNS queries to multiple upstream DNS servers
+at the same time.
+
+This can improve DNS responsiveness and availability
+when an upstream resolver is slow or unavailable.
+
+#### What Does Forwarder Concurrency Mean?
+
+A value of `2` allows Technitium to query up to
+two configured forwarders concurrently.
+
+For this installation:
+
+```text
+Technitium DNS Server
+         |
+         v
+Concurrent Forwarding
+         |
+    +----+----+
+    |         |
+    v         v
+AdGuard 1   AdGuard 2
+94.140.14.14 94.140.14.15
+    |         |
+    +----+----+
+         |
+         v
+     DNS Response
+```
+
+> **Note:** Concurrent forwarding may send the
+> same DNS query to multiple upstream providers.
+>
+> This can improve availability but may increase
+> upstream DNS traffic.
+
+---
 
 ### Verify Forwarder Configuration
 
-After saving the settings, test DNS resolution:
+After saving the settings, verify DNS resolution
+from another computer on the network.
+
+#### Test Primary Technitium DNS Server
 
 ```bash
-dig @192.168.xxx.xx google.com
+dig @192.168.xxx.xx google.com A
 ```
 
-Repeat for the secondary server:
+#### Test Secondary Technitium DNS Server
 
 ```bash
-dig @192.168.xxx.xx google.com
+dig @192.168.xxx.xx google.com A
 ```
 
-Both servers should return successful DNS responses.
+### Expected Results
+
+Both DNS servers should return:
+
+```text
+status: NOERROR
+```
+
+The response should also contain an ANSWER SECTION
+with one or more IPv4 addresses.
+
+> **Important:** Replace the example IP addresses
+> with the IP addresses assigned to your
+> Technitium DNS servers.
+
+---
+
+### Verify DNS over TLS Connectivity
+
+On the Ubuntu Server running Technitium,
+you can test connectivity to the AdGuard
+DNS-over-TLS endpoint.
+
+```bash
+openssl s_client \
+-connect 94.140.14.14:853 \
+-servername dns.adguard-dns.com \
+-verify_hostname dns.adguard-dns.com \
+-verify_return_error </dev/null
+```
+
+Look for:
+
+```text
+Verification: OK
+Verify return code: 0 (ok)
+```
+
+This verifies that the server can establish a TLS
+connection and validate the certificate presented
+by the upstream endpoint.
+
+> **Note:** This test confirms TLS connectivity
+> and certificate validation.
+>
+> It does not independently prove that Technitium
+> is forwarding DNS queries using TLS.
+
+---
+
+### Configuration Complete
+
+The Technitium DNS servers are now configured
+to forward DNS queries using encrypted DNS over TLS.
+
+Configuration summary:
+
+- DNS Provider: AdGuard DNS
+- Forwarder Protocol: DNS over TLS
+- DNS Port: TCP 853
+- Concurrent Forwarding: Enabled
+- Forwarder Concurrency: 2
+
+**Status: Configuration documented.**
 
 ---
 
