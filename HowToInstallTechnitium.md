@@ -5,7 +5,7 @@ Technitium DNS Server on two different platforms:
 
 1. Proxmox VE using an Ubuntu Server virtual machine.  This will be the primary DNS Server
 2. Raspberry Pi 4 using a Linux operating system. This will be the Secondary DNS Server
-3. Setup Both IP's in your Gateway as Static (DHCP reservation).  
+3. Configure DHCP reservations in the network gateway to ensure both Technitium DNS servers receive consistent IP addresses.
 
 ---
 
@@ -90,9 +90,16 @@ sudo apt upgrade -y
 Get the current IP and mac ID.  Then set the static IP (make a DHCP reservation) in your gateway or where your IP's are being assigned.  
 
 ```bash
-IP a
+ip a
 ```
-Reboot so that the new IP that has been assigned will take effect:
+To identify the network interface and MAC address more clearly, you can also use:  
+```bash
+ip -br addr
+ip link show
+```
+These commands help identify the network interface, assigned IP address, and MAC address.  
+
+Reboot so that the new IP that has been assigned will take effect:  
 
 ```bash
 sudo reboot
@@ -536,6 +543,19 @@ server 91.189.91.111 iburst trust
 server 185.125.190.121 iburst trust
 
 ```
+You can also run
+
+```bash
+chronyc sources -v
+```
+This displays the NTP sources Chrony knows about and their selection status.
+
+You can also run:
+```bash
+chronyc tracking
+```
+This verifies Chrony's current synchronization status.
+
 ---
 
 ### Result
@@ -547,6 +567,7 @@ Chrony synchronized automatically, allowing Technitium
 DNSSEC validation to operate normally.
 
 **Status: Tested successfully on the original installation.**
+
 
 # Part 3 - Initial Technitium Configuration
 
@@ -591,6 +612,63 @@ status: NOERROR
 ```
 
 And an ANSWER SECTION containing DNS records.
+
+## DNSSEC Validation Verification
+
+After verifying normal DNS resolution, test how the
+Technitium server handles invalid DNSSEC signatures.
+
+### Test Secondary DNS Server
+
+Run:
+
+```bash
+dig @192.168.xxx.xx dnssec-failed.org A
+```
+
+### Expected Result
+
+```text
+status: SERVFAIL
+```
+
+The response may also contain:
+
+```text
+EDE: 6 (DNSSEC Bogus)
+```
+
+### Actual Test Results
+
+Test Date: October 19, 2026
+
+```text
+status: SERVFAIL
+EDE: 6 (DNSSEC Bogus)
+EDE: 22 (No Reachable Authority)
+EDE: 13 (Cached Error)
+```
+
+### Explanation
+
+The domain `dnssec-failed.org` is intentionally
+configured with invalid DNSSEC signatures.
+
+A DNSSEC-validating resolver should reject the
+invalid response.
+
+**Important:** A validating upstream DNS provider
+may also reject the response.
+
+This test confirms that invalid DNSSEC data was
+rejected somewhere in the resolution path.
+It does not independently prove that Technitium
+performed the validation.
+
+### Result
+
+DNSSEC-invalid domain rejected: PASS
+
 
 ---
 
