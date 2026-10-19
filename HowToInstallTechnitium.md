@@ -3,9 +3,55 @@
 This guide provides step-by-step instructions for installing
 Technitium DNS Server on two different platforms:
 
-1. Proxmox VE using an Ubuntu Server virtual machine.  This will be the primary DNS Server
-2. Raspberry Pi 4 using a Linux operating system. This will be the Secondary DNS Server
-3. Configure DHCP reservations in the network gateway to ensure both Technitium DNS servers receive consistent IP addresses.
+1. Proxmox VE using an Ubuntu Server virtual machine.
+2. Raspberry Pi 4 using Ubuntu Server.
+3. Configure DHCP reservations in your network gateway.
+
+## Network Configuration and IP Addresses
+
+This installation guide uses the following network configuration
+as an example.
+
+| Device | Role | Example IP Address |
+|--------|------|--------------------|
+| Proxmox VM | Primary Technitium DNS | 192.168.10.10 |
+| Raspberry Pi 4 | Secondary Technitium DNS | 192.168.10.11 |
+| Network Gateway | Router / Firewall | 192.168.10.1 |
+
+> **Important:** The IP addresses shown throughout this guide
+> are examples from my home network.
+>
+> Replace these addresses with the IP addresses assigned
+> to your own network.
+>
+> For example, if your network uses `192.168.10.0/24`,
+> you might configure:
+>
+> - Primary DNS: `192.168.10.10`
+> - Secondary DNS: `192.168.10.11`
+>
+> Ensure that both addresses are available and do not
+> conflict with other devices.
+> I have used the following so you know to replace with your
+> own IP's:
+> 192.168.xxx.xx
+
+### DHCP Reservations
+
+For this installation, DHCP reservations are configured
+on the network gateway to ensure each DNS server
+receives a consistent IP address.
+
+A DHCP reservation associates a device's MAC address
+with a specific IP address.
+
+This allows the server to continue using DHCP while
+receiving the same IP address.
+
+> **Note:** A DHCP reservation is different from
+> manually configuring a static IP address in Ubuntu.
+> Either method can provide a consistent address,
+> but the configuration process is different.
 
 ---
 
