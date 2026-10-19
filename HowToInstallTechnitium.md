@@ -697,20 +697,28 @@ Check DNS resolution:
 dig @192.168.xxx.xx google.com
 ```
 
-Check whether Technitium is listening on port 53:
+## DNSSEC errors after reboot
 
+```bash
+timedatectl
+chronyc tracking
+chronyc sources -v
+```
+
+## DNS port 53 not responding  
+Check whether Technitium is listening on port 53:  
 ```bash
 sudo ss -tulpn | grep ':53 '
 ```
 
 ## Web Interface Not Accessible
-
+Technitium web interface not responding  
 Verify that Technitium is listening on port 5380:
 
 ```bash
 sudo ss -tulpn | grep ':5380 '
 ```
-
+For remote access problems, also verify that the server firewall and your gateway rules permit the intended traffic.
 Check firewall rules and network connectivity.
 
 ---
