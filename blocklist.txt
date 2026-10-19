@@ -46,4 +46,7 @@ torproject.org
 tor-browser.en.softonic.com
 
 # Captive Portal
-fireoscaptiveportal.com
+fireoscaptiveportal.com  
+
+# Netgear Nighthawk MR60 Wifi. This stops the constant pinging
+netgear.com
