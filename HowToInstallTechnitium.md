@@ -1,1 +1,1 @@
-# How to Install Technitum
+# How to Install Technitium
