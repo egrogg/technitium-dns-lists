@@ -607,7 +607,8 @@ sudo systemctl status dns.service
 View recent service logs:
 
 ```bash
-z
+sudo journalctl -u dns.service -n 50 --no-pager
+
 ```
 
 ## DNS Resolution Fails
