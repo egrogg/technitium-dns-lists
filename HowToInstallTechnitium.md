@@ -86,18 +86,16 @@ Upgrade installed packages:
 sudo apt upgrade -y
 ```
 
-Reboot if required:
-
-```bash
-sudo reboot
-```
-
-After reboot, log back in and get the current IP and mac ID.  Then set the static IP (make a DHCP reservation) in your gateway or where your IP's are being assigned.
+Get the current IP and mac ID.  Then set the static IP (make a DHCP reservation) in your gateway or where your IP's are being assigned.  
 
 ```bash
 IP a
 ```
+Reboot so that the new IP that has been assigned will take effect:
 
+```bash
+sudo reboot
+```
 
 ## Step 6 - Install Technitium DNS Server
 
@@ -211,12 +209,313 @@ Active: active (running)
 Open:
 
 ```text
-http://192.168.101.73:5380
+http://192.168.xxx.xx:5380
 ```
 
 Complete the initial setup wizard.
 
 ---
+## Raspberry Pi 4 — Ubuntu Server Time Synchronization
+
+### Overview
+
+The Raspberry Pi 4 does not include a built-in battery-backed
+real-time clock (RTC).
+
+When the Raspberry Pi loses power or reboots, Ubuntu Server
+may start with an incorrect system date and time.
+
+This can cause problems with Technitium DNS Server,
+particularly when DNSSEC validation is enabled.
+
+### Environment
+
+| Component | Configuration |
+|-----------|---------------|
+| Device | Raspberry Pi 4 |
+| Operating System | Ubuntu Server |
+| DNS Server | Technitium DNS |
+| Server Role | Secondary DNS |
+| IP Address | 192.168.101.73 |
+| Time Synchronization | Chrony |
+
+---
+
+### Problem
+
+After rebooting, the Raspberry Pi started with an incorrect
+system clock.
+
+Chrony was configured to use authenticated Network Time
+Security (NTS) servers.
+
+Because the system clock was incorrect, TLS certificate
+validation failed.
+
+The resulting sequence was:
+
+```text
+Raspberry Pi reboots
+        |
+        v
+System clock is incorrect
+        |
+        v
+NTS certificate validation fails
+        |
+        v
+Chrony cannot synchronize
+        |
+        v
+System clock remains incorrect
+        |
+        v
+DNSSEC validation fails
+        |
+        v
+Technitium returns SERVFAIL
+```
+
+Technitium DNS reported:
+
+```text
+Signature Not Yet Valid
+```
+
+---
+
+### Solution — Configure Chrony Bootstrap Sources
+
+The following configuration was used to resolve the
+boot-time synchronization issue.
+
+> **Security Note:** The bootstrap sources below use
+> unauthenticated NTP. The `trust` directive explicitly
+> trusts these sources, so their integrity is important.
+> This configuration restores time synchronization but
+> does not provide the same authentication guarantees
+> as NTS. Use only trusted time sources.
+
+### Step 1 — Configure Bootstrap NTP Sources
+
+Create the Chrony bootstrap source file:
+
+```bash
+sudo nano /etc/chrony/sources.d/bootstrap-ip.sources
+```
+
+Add:
+
+```text
+server 91.189.91.111 iburst trust
+server 185.125.190.121 iburst trust
+```
+
+Save the file.
+
+Verify the configuration:
+
+```bash
+cat /etc/chrony/sources.d/bootstrap-ip.sources
+```
+
+> **Note:** These are the IP addresses used during the
+> original repair. Verify that they remain valid before
+> deploying this configuration on another system.
+
+---
+
+### Step 2 — Modify Chrony Authentication Selection
+
+Open the Chrony configuration:
+
+```bash
+sudo nano /etc/chrony/chrony.conf
+```
+
+Add the following directive:
+
+```text
+authselectmode ignore
+```
+
+Verify that the configuration also contains:
+
+```text
+makestep 1 3
+```
+
+The relevant settings should look like:
+
+```text
+authselectmode ignore
+makestep 1 3
+```
+
+#### Explanation
+
+**authselectmode ignore**
+
+Prevents authentication status from automatically
+controlling Chrony's source-selection process.
+
+This permits the configured bootstrap NTP sources
+to participate in time synchronization.
+
+**makestep 1 3**
+
+Allows Chrony to step the system clock when the
+time offset exceeds one second during the first
+three clock updates.
+
+---
+
+### Step 3 — Restart Chrony
+
+Restart the service:
+
+```bash
+sudo systemctl restart chrony
+```
+
+Wait approximately 20–30 seconds.
+
+Check the system time:
+
+```bash
+date
+```
+
+Check synchronization status:
+
+```bash
+timedatectl
+```
+
+Check Chrony tracking:
+
+```bash
+chronyc tracking
+```
+
+Check available NTP sources:
+
+```bash
+chronyc sources -v
+```
+
+A successful synchronization should eventually show:
+
+```text
+System clock synchronized: yes
+NTP service: active
+Leap status: Normal
+```
+
+> **Note:** Synchronization may take longer than
+> 30 seconds depending on network availability
+> and the initial clock offset.
+
+---
+
+### Step 4 — Verify After Reboot
+
+Reboot the Raspberry Pi:
+
+```bash
+sudo reboot
+```
+
+After reconnecting through SSH, run:
+
+```bash
+date
+timedatectl
+chronyc tracking
+```
+
+Verify the following:
+
+1. The system date and time are correct.
+2. Chrony has synchronized successfully.
+3. The NTP service is active.
+4. The Chrony leap status is Normal.
+
+Expected results:
+
+```text
+System clock synchronized: yes
+NTP service: active
+Leap status: Normal
+```
+
+The Raspberry Pi may still report:
+
+```text
+RTC time: n/a
+```
+
+This is normal because the Raspberry Pi 4 does not
+have a built-in battery-backed RTC.
+
+The purpose of this configuration is to restore
+the correct system time automatically using NTP.
+
+It does not add a physical RTC.
+
+---
+
+### Step 5 — Verify Technitium DNS
+
+After confirming that the system clock is synchronized,
+test DNS resolution:
+
+```bash
+dig @192.168.101.73 google.com
+```
+
+Verify that the response contains:
+
+```text
+status: NOERROR
+```
+
+Check that the DNSSEC time-validation error
+is no longer occurring.
+
+If DNS resolution still fails, review the
+Technitium DNS logs and Chrony synchronization status.
+
+---
+
+### Important Maintenance Considerations
+
+The bootstrap NTP sources use hard-coded IP addresses.
+
+If these addresses change or become unavailable,
+the Raspberry Pi may fail to synchronize its clock.
+
+Periodically verify:
+
+```bash
+chronyc sources -v
+```
+
+For environments requiring stronger time integrity,
+consider installing a battery-backed RTC module
+or implementing an authenticated time-bootstrap solution.
+
+---
+
+### Result
+
+The original Raspberry Pi 4 configuration successfully
+recovered its system time after reboot.
+
+Chrony synchronized automatically, allowing Technitium
+DNSSEC validation to operate normally.
+
+**Status: Tested successfully on the original installation.**
 
 # Part 3 - Initial Technitium Configuration
 
@@ -245,13 +544,13 @@ sudo apt install dnsutils -y
 Test the primary Technitium server:
 
 ```bash
-dig @192.168.101.72 google.com
+dig @192.168.xxx.xx google.com
 ```
 
 Test the secondary Technitium server:
 
 ```bash
-dig @192.168.101.73 google.com
+dig @192.168.xxx.xx google.com
 ```
 
 A successful DNS query should return:
