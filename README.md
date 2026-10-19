@@ -1,1 +1,0 @@
-# technitium-dns-lists
