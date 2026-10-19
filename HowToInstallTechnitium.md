@@ -146,12 +146,27 @@ https://www.raspberrypi.com/software/
 ## Step 2 - Prepare the Raspberry Pi
 
 1. Insert the microSD card into your computer.
-2. Launch Raspberry Pi Imager.
-3. Select Raspberry Pi 4.
-4. Select a supported 64-bit Raspberry Pi OS Lite image.
-5. Select the storage device.
-6. Configure the hostname, username, and SSH access.
-7. Write the operating system to the storage device.
+2. Launch **Raspberry Pi Imager**.
+3. Under **Raspberry Pi Device**, select **Raspberry Pi 4**.
+4. Under **Operating System**, select:
+   - **Other general-purpose OS**
+   - **Ubuntu**
+   - **Ubuntu Server 24.04 LTS (64-bit)**
+5. Under **Storage**, select the microSD card.
+6. Click **Next**.
+7. If prompted, select **Edit Settings** or **OS Customisation** to configure:
+   - **Hostname:** `technitium-secondary`
+   - **Username:** Create an administrator username.
+   - **Password:** Create a strong password.
+   - **SSH:** Enable SSH for remote administration.
+   - **SSH Authentication:** Prefer public-key authentication.
+   - **Wi-Fi:** Configure only if not using Ethernet.
+8. Save the customization settings, if available.
+9. Confirm the selected storage device.
+10. Click **Write** to install Ubuntu Server onto the microSD card.
+11. Wait for the writing and verification process to complete.
+12. Safely remove the microSD card.
+
 
 ## Step 3 - Boot the Raspberry Pi
 
@@ -162,10 +177,10 @@ https://www.raspberrypi.com/software/
 
 ## Step 4 - Connect Using SSH
 
-From another Linux computer:
+From another Linux computer: (this is for the Secondary Technitium DNS server)
 
 ```bash
-ssh username@192.168.101.73
+ssh username@192.168.xxx.xx
 ```
 
 Replace the username and IP address with your configuration.
@@ -206,7 +221,7 @@ Active: active (running)
 
 ## Step 8 - Access the Web Interface
 
-Open:
+Open: (This is for the Secondary Technitium DNS Server)
 
 ```text
 http://192.168.xxx.xx:5380
@@ -236,7 +251,7 @@ particularly when DNSSEC validation is enabled.
 | Operating System | Ubuntu Server |
 | DNS Server | Technitium DNS |
 | Server Role | Secondary DNS |
-| IP Address | 192.168.101.73 |
+| IP Address | 192.168.xxx.xx |
 | Time Synchronization | Chrony |
 
 ---
@@ -294,7 +309,8 @@ boot-time synchronization issue.
 > trusts these sources, so their integrity is important.
 > This configuration restores time synchronization but
 > does not provide the same authentication guarantees
-> as NTS. Use only trusted time sources.
+> as NTS. Use only trusted time sources. Noted below
+> are the two that I used to get it working.
 
 ### Step 1 — Configure Bootstrap NTP Sources
 
@@ -449,29 +465,41 @@ NTP service: active
 Leap status: Normal
 ```
 
-The Raspberry Pi may still report:
+Correctly reporting will show the following:
 
-```text
-RTC time: n/a
+```bash
+Mon Oct 19 10:39:11 EDT 2026
+               Local time: Mon 2026-10-19 10:39:12 EDT
+           Universal time: Mon 2026-10-19 14:39:12 UTC
+                 RTC time: n/a
+                Time zone: America/New_York (EDT, -0400)
+System clock synchronized: yes
+              NTP service: active
+          RTC in local TZ: no
+Reference ID    : 5BBD5B71 (ntp-nts-3.ps6.canonical.com)
+Stratum         : 3
+Ref time (UTC)  : Mon Oct 19 14:34:07 2026
+System time     : 0.000008470 seconds slow of NTP time
+Last offset     : +0.000000339 seconds
+RMS offset      : 0.000197682 seconds
+Frequency       : 7.755 ppm fast
+Residual freq   : +0.000 ppm
+Skew            : 0.016 ppm
+Root delay      : 0.063948907 seconds
+Root dispersion : 0.002417034 seconds
+Update interval : 1038.5 seconds
+Leap status     : Normal
 ```
-
-This is normal because the Raspberry Pi 4 does not
-have a built-in battery-backed RTC.
-
-The purpose of this configuration is to restore
-the correct system time automatically using NTP.
-
-It does not add a physical RTC.
 
 ---
 
 ### Step 5 — Verify Technitium DNS
 
 After confirming that the system clock is synchronized,
-test DNS resolution:
+test DNS resolution: Use the Secondary Technitium DNS server IP:
 
 ```bash
-dig @192.168.101.73 google.com
+dig @192.168.xxx.xx google.com
 ```
 
 Verify that the response contains:
@@ -498,13 +526,15 @@ the Raspberry Pi may fail to synchronize its clock.
 Periodically verify:
 
 ```bash
-chronyc sources -v
+cat /etc/chrony/sources.d/bootstrap-ip.sources
 ```
+Results should  show:
 
-For environments requiring stronger time integrity,
-consider installing a battery-backed RTC module
-or implementing an authenticated time-bootstrap solution.
+```bash
+server 91.189.91.111 iburst trust
+server 185.125.190.121 iburst trust
 
+```
 ---
 
 ### Result
@@ -576,7 +606,7 @@ sudo systemctl status dns.service
 View recent service logs:
 
 ```bash
-sudo journalctl -u dns.service -n 50 --no-pager
+z
 ```
 
 ## DNS Resolution Fails
@@ -584,7 +614,7 @@ sudo journalctl -u dns.service -n 50 --no-pager
 Check DNS resolution:
 
 ```bash
-dig @192.168.101.72 google.com
+dig @192.168.xxx.xx google.com
 ```
 
 Check whether Technitium is listening on port 53:
