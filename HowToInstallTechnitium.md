@@ -617,17 +617,352 @@ DNSSEC validation to operate normally.
 
 # Part 3 - Initial Technitium Configuration
 
-After installing Technitium DNS Server:
+After installing Technitium DNS Server on both the
+Proxmox Ubuntu Server VM and Raspberry Pi 4,
+the next step is to configure and verify each DNS server.
+
+For this installation:
+
+| Server | Role | IP Address |
+|--------|------|------------|
+| Proxmox Ubuntu Server VM | Primary DNS | 192.168.xxx.xx |
+| Raspberry Pi 4 Ubuntu Server | Secondary DNS | 192.168.xxx.xx |
+
+> **Important:** Replace these IP addresses with
+> the addresses assigned to your own DNS servers.
+
+---
+
+## Step 1 - Access the Technitium Web Interface
+
+From a computer connected to your local network,
+open a web browser.
+
+### Primary DNS Server
+
+Navigate to:
+
+```text
+http://192.168.xxx.xx:5380
+```
+
+### Secondary DNS Server
+
+Navigate to:
+
+```text
+http://192.168.xxx.xx:5380
+```
+
+Technitium uses TCP port `5380` for its default
+HTTP administrative web interface.
+
+Complete the initial setup wizard if prompted.
+
+> **Security Note:** The HTTP administrative interface
+> is not encrypted. Use it only on a trusted management
+> network during initial setup. Configure HTTPS for
+> ongoing administration.
+
+---
+
+## Step 2 - Configure Administrator Credentials
+
+When accessing Technitium DNS Server for the first time,
+complete the initial administrator setup.
+
+1. Open the Technitium web interface.
+2. Follow the initial setup prompts.
+3. Configure a strong administrator password.
+4. Complete the setup.
+5. Log in using the administrator account.
+
+### Security Recommendations
+
+- Use a unique administrator password.
+- Do not reuse passwords from other services.
+- Restrict access to the administrative interface.
+- Do not expose administrative ports directly to the internet.
+- Use HTTPS for ongoing administration.
+
+Repeat this process on both DNS servers.
+
+---
+
+## Step 3 - Verify DNS Server Network Settings
+
+Log in to the Technitium web interface.
+
+1. Navigate to **Settings**.
+2. Locate the DNS Server settings.
+3. Review the configured listening addresses.
+4. Confirm that Technitium is listening on the
+   intended network interfaces.
+5. Save changes only if modifications are necessary.
+
+### Verify DNS Port 53
+
+From the Ubuntu Server terminal, run:
+
+```bash
+sudo ss -tulpn | grep ':53 '
+```
+
+Technitium should be listening on DNS port `53`.
+
+DNS uses:
+
+- UDP port 53 for standard DNS queries.
+- TCP port 53 for DNS queries requiring TCP transport.
+
+> **Important:** Ensure that no other DNS service
+> is conflicting with Technitium on port 53.
+
+Repeat this verification on both servers.
+
+---
+
+## Step 4 - Configure DNS Forwarders
+
+Technitium can resolve DNS queries recursively or
+forward them to another DNS resolver.
+
+For this example, we will configure DNS forwarding.
+
+### Configure Forwarders
 
 1. Log in to the Technitium web interface.
-2. Configure administrator credentials.
-3. Configure DNS settings.
-4. Configure DNS forwarders if required.
-5. Configure the server's network settings.
-6. Verify DNS resolution.
+2. Navigate to **Settings**.
+3. Navigate to **ProxyAndForwarders**
+4. Locate the **Forwarders** section.
+5. Select the desired forwarding protocol. You can use the quick select to add. I have added two.
+6. Enter the DNS forwarder addresses.
+7. Save the configuration.
 
-> **Security Note:** Do not expose the Technitium
-> administrative web interface directly to the internet.
+### Example DNS Providers
+
+| Provider | DNS Address | Protocol |
+|----------|-------------|----------|
+| dns.adguard-dns.com | 94.140.14.14:853 | DNS |
+| dns.adguard-dns.com | 94.140.14.15:853 | DNS |
+
+> **Note:** These are examples only.
+> Choose DNS forwarders according to your
+> security, privacy, and filtering requirements.
+
+### DNS over TLS
+This is the **Forwarder Protocol**
+Technitium also supports encrypted upstream
+DNS forwarding using DNS over TLS (DoT). --This is what I have selected
+
+DNS over TLS typically uses TCP port `853`.
+
+For encrypted forwarding, configure the provider's
+supported hostname and protocol according to
+the Technitium settings.
+
+> **Important:** Do not assume that entering an
+> IP address automatically enables encrypted DNS.
+> The forwarding protocol must be configured correctly.
+
+I have also selected **Concurrent Forwarding**
+And **Forwarder Concurrency** as 2
+
+### Verify Forwarder Configuration
+
+After saving the settings, test DNS resolution:
+
+```bash
+dig @192.168.101.72 google.com
+```
+
+Repeat for the secondary server:
+
+```bash
+dig @192.168.101.73 google.com
+```
+
+Both servers should return successful DNS responses.
+
+---
+
+## Step 5 - Verify DNS Resolution
+
+From another computer on your network,
+open a terminal.
+
+### Test Primary DNS
+
+```bash
+dig @192.168.101.72 google.com A
+```
+
+### Test Secondary DNS
+
+```bash
+dig @192.168.101.73 google.com A
+```
+
+### Expected Result
+
+A successful query should contain:
+
+```text
+status: NOERROR
+```
+
+The response should also include an ANSWER SECTION
+containing one or more IPv4 addresses.
+
+### Verify TCP DNS
+
+Test the primary server:
+
+```bash
+dig +tcp @192.168.101.72 google.com A
+```
+
+Test the secondary server:
+
+```bash
+dig +tcp @192.168.101.73 google.com A
+```
+
+Both queries should complete successfully.
+
+---
+
+## Step 6 - Verify DNS Server Availability
+
+From another computer, verify that both servers
+are reachable.
+
+### Primary DNS
+
+```bash
+ping -c 4 192.168.101.72
+```
+
+### Secondary DNS
+
+```bash
+ping -c 4 192.168.101.73
+```
+
+> **Note:** Some networks block ICMP traffic.
+> A failed ping does not necessarily mean
+> the DNS server is unavailable.
+
+The DNS queries from Step 5 are the more
+important tests.
+
+---
+
+## Step 7 - Verify Technitium Services
+
+On each Ubuntu Server, run:
+
+```bash
+sudo systemctl status dns.service
+```
+
+Expected:
+
+```text
+Active: active (running)
+```
+
+To verify that Technitium starts automatically:
+
+```bash
+sudo systemctl is-enabled dns.service
+```
+
+Expected:
+
+```text
+enabled
+```
+
+If the service is not enabled, run:
+
+```bash
+sudo systemctl enable dns.service
+```
+
+---
+
+## Step 8 - Verify Configuration After Reboot
+
+After completing the initial configuration,
+reboot each DNS server individually.
+
+> **Important:** Reboot one server at a time
+> to avoid unnecessary DNS interruptions.
+
+### Reboot Ubuntu Server
+
+```bash
+sudo reboot
+```
+
+After reconnecting, verify the service:
+
+```bash
+sudo systemctl status dns.service
+```
+
+### Verify DNS Resolution
+
+Primary server:
+
+```bash
+dig @192.168.101.72 google.com
+```
+
+Secondary server:
+
+```bash
+dig @192.168.101.73 google.com
+```
+
+Both servers should return successful responses.
+
+### Raspberry Pi Time Synchronization
+
+On the Raspberry Pi, also verify Chrony:
+
+```bash
+timedatectl
+chronyc tracking
+chronyc sources -v
+```
+
+Confirm that the system clock is synchronized
+before relying on DNSSEC validation.
+
+---
+
+## Initial Configuration Complete
+
+At this point:
+
+- Both Technitium DNS servers are installed.
+- Administrator credentials have been configured.
+- DNS listening settings have been reviewed.
+- DNS forwarding has been configured if desired.
+- UDP and TCP DNS resolution have been tested.
+- Technitium services are running.
+- Both servers have been tested after reboot.
+- Raspberry Pi time synchronization has been verified.
+
+**The initial Technitium installation and configuration
+are complete.**
+
+> **Next Step:** Configure Technitium DNS clustering
+> to connect the primary and secondary servers.
+>
+> Clustering will be documented separately.
 
 ---
 
