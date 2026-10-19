@@ -15,7 +15,7 @@ Technitium DNS Server on two different platforms:
 - [Part 2 - Raspberry Pi 4 Installation](#part-2---raspberry-pi-4-installation)
 - [Part 3 - Initial Technitium Configuration](#part-3---initial-technitium-configuration)
 - [Part 4 - Verify DNS Resolution](#part-4---verify-dns-resolution)
-- [Part 5 - Troubleshooting](#part-5--troubleshooting)
+- [Part 5 - Troubleshooting](#part-5---troubleshooting)
 
 ---
 
