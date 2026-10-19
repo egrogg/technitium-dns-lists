@@ -15,14 +15,14 @@ The setup we'll build
 
 The important part is that your DHCP server/router should ultimately hand out both DNS addresses:  
 ```bash
-DNS 1 = 192.168.xxx.xx
-DNS 2 = 192.168.xxx.xx
+DNS 1 = 192.168.xxx.xx  # Primary DNS  
+DNS 2 = 192.168.xxx.xx  # Secondary DNS  
 ```  
 My install consists of a Virtual Machine on Proxmox installed as:  
-1. Ubuntu server  
-2. Raspberry Pi 4
+1. Ubuntu server  Primary DNS  
+2. Raspberry Pi 4 Secondary DNS  
 
-One important distinction: clustering synchronizes the Technitium configuration, while putting both DNS IPs into your DHCP/client configuration provides the actual client-side redundancy. The two servers still operate independently as DNS servers.  
+One important distinction: Clustering synchronizes the Technitium configuration, while putting both DNS IPs into your DHCP/client configuration provides the actual client-side redundancy. The two servers still operate independently as DNS servers.  
 
 How Technitium clustering works  
 Technitium's cluster has:  
@@ -33,7 +33,7 @@ Technitium's cluster has:
   - Cache and logging remain node-specific.  
   - DHCP scopes are not currently part of clustering, so those need separate consideration.
 
-Since I am writing this now, hopefully you are downloading and installing version than 15.4 or newer. Technitium clustering is available in v15.4, and the nodes remain independently functioning DNS servers while the cluster synchronizes configuration.  
+Since I am writing this now, hopefully you are downloading and installing version than 15.4 or newer. Technitium clustering is available in v15.4, and the nodes remain independently functioning DNS servers while the cluster synchronizes configuration.  See How to Install.md
 
 ## Step 1 — Decide on your Cluster Domain  
 You need a domain name for the cluster. Since this is a private/home/internal DNS setup, you can use something like:
