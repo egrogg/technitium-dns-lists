@@ -806,13 +806,13 @@ DNS uses:
 From another computer, run:
 
 ```bash
-dig @192.168.101.72 google.com A
+dig @192.168.xxx.xx google.com A
 ```
 
 For the secondary server:
 
 ```bash
-dig @192.168.101.73 google.com A
+dig @192.168.xxx.xx google.com A
 ```
 
 ### Expected Result
@@ -883,13 +883,13 @@ And **Forwarder Concurrency** as 2
 After saving the settings, test DNS resolution:
 
 ```bash
-dig @192.168.101.72 google.com
+dig @192.168.xxx.xx google.com
 ```
 
 Repeat for the secondary server:
 
 ```bash
-dig @192.168.101.73 google.com
+dig @192.168.xxx.xx google.com
 ```
 
 Both servers should return successful DNS responses.
@@ -904,13 +904,13 @@ open a terminal.
 ### Test Primary DNS
 
 ```bash
-dig @192.168.101.72 google.com A
+dig @192.168.xxx.xx google.com A
 ```
 
 ### Test Secondary DNS
 
 ```bash
-dig @192.168.101.73 google.com A
+dig @192.168.xx.xx google.com A
 ```
 
 ### Expected Result
@@ -929,13 +929,13 @@ containing one or more IPv4 addresses.
 Test the primary server:
 
 ```bash
-dig +tcp @192.168.101.72 google.com A
+dig +tcp @192.168.xxx.xx google.com A
 ```
 
 Test the secondary server:
 
 ```bash
-dig +tcp @192.168.101.73 google.com A
+dig +tcp @192.168.xxx.xx google.com A
 ```
 
 Both queries should complete successfully.
@@ -950,16 +950,17 @@ are reachable.
 ### Primary DNS
 
 ```bash
-ping -c 4 192.168.101.72
+ping -c 4 192.168.xxx.xx
 ```
 
 ### Secondary DNS
 
 ```bash
-ping -c 4 192.168.101.73
+ping -c 4 192.168.xxx.xx
 ```
 
-> **Note:** Some networks block ICMP traffic.
+> **Note:** Your network may block ICMP traffic.
+> I have enabled that on my network.
 > A failed ping does not necessarily mean
 > the DNS server is unavailable.
 
@@ -970,7 +971,7 @@ important tests.
 
 ## Step 7 - Verify Technitium Services
 
-On each Ubuntu Server, run:
+On each Ubuntu DNS Server, run:
 
 ```bash
 sudo systemctl status dns.service
@@ -1027,13 +1028,13 @@ sudo systemctl status dns.service
 Primary server:
 
 ```bash
-dig @192.168.101.72 google.com
+dig @192.168.xxx.xx google.com
 ```
 
 Secondary server:
 
 ```bash
-dig @192.168.101.73 google.com
+dig @192.168.xxx.xx google.com
 ```
 
 Both servers should return successful responses.
