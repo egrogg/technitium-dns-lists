@@ -691,14 +691,100 @@ Repeat this process on both DNS servers.
 
 ## Step 3 - Verify DNS Server Network Settings
 
-Log in to the Technitium web interface.
+After logging in to the Technitium DNS web interface,
+verify that the DNS server is listening on the
+correct network interfaces.
 
-1. Navigate to **Settings**.
-2. Locate the DNS Server settings.
-3. Review the configured listening addresses.
-4. Confirm that Technitium is listening on the
-   intended network interfaces.
-5. Save changes only if modifications are necessary.
+### Access DNS Server Settings
+
+1. Log in to the Technitium DNS web interface.
+2. Navigate to **Settings**.
+3. Locate **DNS Server Local End Points**.
+4. Review the configured listening addresses.
+
+### DNS Server Local End Points
+
+By default, Technitium may display:
+
+```text
+0.0.0.0:53
+[::]:53
+```
+
+These settings mean:
+
+| Setting | Description |
+|---------|-------------|
+| `0.0.0.0:53` | Listen on all IPv4 network interfaces |
+| `[::]:53` | Listen on all IPv6 network interfaces |
+
+### IPv4-Only Configuration (Optional)
+
+If your network does not use IPv6, you may configure
+Technitium to listen only on IPv4.
+
+Change:
+
+```text
+0.0.0.0:53
+[::]:53
+```
+
+To:
+
+```text
+0.0.0.0:53
+```
+
+> **Important:** Removing the IPv6 listening address
+> does not disable IPv6 in Ubuntu Server.
+> It only prevents Technitium from listening
+> for DNS requests over IPv6.
+
+### DNS Server IPv4 Source Addresses
+
+Locate:
+
+**DNS Server IPv4 Source Addresses**
+
+The default value is:
+
+```text
+0.0.0.0
+```
+
+This allows the operating system to select the
+appropriate IPv4 source address for outbound
+DNS requests.
+
+For a server with one network interface,
+this setting can normally remain unchanged.
+
+### DNS Server IPv6 Source Addresses
+
+Locate:
+
+**DNS Server IPv6 Source Addresses**
+
+The default value is:
+
+```text
+::
+```
+
+This setting controls the IPv6 source address
+used for outbound DNS requests when IPv6 is enabled.
+
+If IPv6 is not being used, no changes are
+normally necessary.
+
+### Save Configuration
+
+If changes were made:
+
+1. Save the Technitium settings.
+2. Verify that the DNS service remains operational.
+3. Test DNS resolution from another computer.
 
 ### Verify DNS Port 53
 
@@ -708,18 +794,42 @@ From the Ubuntu Server terminal, run:
 sudo ss -tulpn | grep ':53 '
 ```
 
-Technitium should be listening on DNS port `53`.
+Verify that Technitium is listening on port 53.
 
 DNS uses:
 
-- UDP port 53 for standard DNS queries.
-- TCP port 53 for DNS queries requiring TCP transport.
+- UDP port 53
+- TCP port 53
 
-> **Important:** Ensure that no other DNS service
-> is conflicting with Technitium on port 53.
+### Test DNS Resolution
 
-Repeat this verification on both servers.
+From another computer, run:
 
+```bash
+dig @192.168.101.72 google.com A
+```
+
+For the secondary server:
+
+```bash
+dig @192.168.101.73 google.com A
+```
+
+### Expected Result
+
+```text
+status: NOERROR
+```
+
+The response should also contain an ANSWER SECTION
+with one or more IPv4 addresses.
+
+> **Note:** Replace the example IP addresses
+> with the addresses assigned to your DNS servers.
+
+---
+
+**Result:** DNS server network settings verified.
 ---
 
 ## Step 4 - Configure DNS Forwarders
