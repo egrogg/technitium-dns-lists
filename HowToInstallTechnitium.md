@@ -19,7 +19,7 @@ as an example.
 | Network Gateway | Router / Firewall | 192.168.10.1 |
 
 > **Important:** The IP addresses shown throughout this guide
-> are examples from my home network.
+> are illustrative addresses, not the actual IP addresses of my home network.
 >
 > Replace these addresses with the IP addresses assigned
 > to your own network.
@@ -32,9 +32,9 @@ as an example.
 >
 > Ensure that both addresses are available and do not
 > conflict with other devices.
-> I have used the following so you know to replace with your
-> own IP's:
-> 192.168.xxx.xx
+> Some command examples use `192.168.xxx.xx` as a placeholder.
+> Replace it with the appropriate primary or secondary server IP.
+> **Do not run both primary and secondary tests against the same address.**
 
 ### DHCP Reservations
 
@@ -133,7 +133,9 @@ Upgrade installed packages:
 sudo apt upgrade -y
 ```
 
-Get the current IP and mac ID.  Then set the static IP (make a DHCP reservation) in your gateway or where your IP's are being assigned.  
+Identify the current IP address and MAC address. If using a DHCP reservation,
+create it on the gateway or DHCP server. A DHCP reservation is not the same
+as setting a static IP inside Ubuntu.  
 
 ```bash
 ip a
@@ -145,7 +147,7 @@ ip link show
 ```
 These commands help identify the network interface, assigned IP address, and MAC address.  
 
-Reboot so that the new IP that has been assigned will take effect:  
+After creating the reservation, renew the DHCP lease or reboot to request the reserved IP:  
 
 ```bash
 sudo reboot
@@ -239,7 +241,7 @@ ssh username@192.168.xxx.xx
 
 Replace the username and IP address with your configuration.
 
-## Step 5 - Update Raspberry Pi OS
+## Step 5 - Update Ubuntu Server
 
 Update the package repositories:
 
@@ -287,6 +289,12 @@ Complete the initial setup wizard.
 ## Raspberry Pi 4 — Ubuntu Server Time Synchronization
 
 ### Overview
+
+> **Optional troubleshooting procedure:** This section records a specific
+> time synchronization problem encountered during the original installation.
+> First check whether the default Ubuntu time synchronization works after
+> reboot. Apply the workaround only if needed, after considering the security
+> implications of unauthenticated NTP bootstrap sources and the `trust` directive.
 
 The Raspberry Pi 4 does not include a built-in battery-backed
 real-time clock (RTC).
@@ -905,7 +913,7 @@ Concurrent Forwarding
     |         |
     v         v
 AdGuard 1   AdGuard 2
-94.140.14.14 94.140.14.15
+94.140.14.14 94.140.15.15
     |         |
     +----+----+
          |
@@ -942,7 +950,7 @@ The corresponding IPv4 addresses are:
 
 ```text
 94.140.14.14
-94.140.14.15
+94.140.15.15
 ```
 
 > **Important:** Configuring a DNS server IP address
@@ -1634,7 +1642,6 @@ After successfully completing all verification steps:
 > Clustering will be documented separately.
 
 ---
-
 # Part 4 - Verify DNS Resolution
 
 After installing and configuring both Technitium DNS servers,
@@ -1966,17 +1973,17 @@ To confirm that Technitium is communicating with
 the configured upstream DNS servers over TCP port 853,
 inspect the network traffic.
 
+If `tcpdump` is not installed, install it first:
+
+```bash
+sudo apt install tcpdump -y
+```
+
 On the Technitium server, run:
 
 ```bash
 sudo tcpdump -ni any \
   'tcp port 853 and (host 94.140.14.14 or host 94.140.15.15)'
-```
-
-If `tcpdump` is not installed:
-
-```bash
-sudo apt install tcpdump -y
 ```
 
 While the capture is running, generate a DNS query
@@ -2059,6 +2066,261 @@ have passed and their results have been recorded.**
 > **Next Step:** Continue to Part 5 - Troubleshooting
 > for information about diagnosing common
 > Technitium DNS problems.
+
+---
+
+# Part 5 - Troubleshooting
+
+Use these procedures when a verification step fails. Run server-side commands
+on the affected Ubuntu host, and replace `192.168.xxx.xx` with that host's
+actual address. Record the original symptoms before changing settings.
+
+---
+
+## 1. Technitium Service Not Running
+
+Check service status and whether it is enabled at boot:
+
+```bash
+sudo systemctl status dns.service
+systemctl is-enabled dns.service
+```
+
+Expected: `active (running)` and `enabled`.
+
+If stopped, start the service; if disabled, enable it:
+
+```bash
+sudo systemctl start dns.service
+sudo systemctl enable dns.service
+```
+
+If startup fails, inspect recent logs:
+
+```bash
+sudo journalctl -u dns.service -n 50 --no-pager
+```
+
+Look for port conflicts, invalid configuration, permission problems, or
+startup errors. Diagnose the cause rather than repeatedly restarting.
+
+---
+
+## 2. DNS Resolution Fails
+
+From a separate client, query the affected server explicitly:
+
+```bash
+dig @192.168.xxx.xx google.com A
+dig +tcp @192.168.xxx.xx google.com A
+```
+
+A healthy response normally shows `status: NOERROR` and an `ANSWER SECTION`.
+If the request times out, verify service status and listening ports:
+
+```bash
+sudo systemctl status dns.service
+sudo ss -tulpn | grep ':53 '
+sudo ufw status verbose
+```
+
+Check that UDP **and** TCP port 53 are permitted from authorized clients,
+and review the gateway/VLAN firewall rules. If the server responds but
+external names do not resolve, inspect the forwarders in **Settings → Proxy &
+Forwarders** and review Technitium's query/log views.
+
+> **Note:** `NOERROR` alone does not guarantee an address was returned;
+> check the `ANSWER SECTION` and the queried record type.
+
+---
+
+## 3. DNSSEC Errors After Reboot / Raspberry Pi Clock Problems
+
+Incorrect system time can break DNSSEC validation and TLS certificate checks.
+On the Raspberry Pi, check the clock **before** manually restarting Chrony:
+
+```bash
+date
+timedatectl
+sudo systemctl status chrony
+chronyc tracking
+chronyc sources -v
+```
+
+Expected after synchronization: `System clock synchronized: yes`,
+`NTP service: active`, `Leap status: Normal`, and a selected source marked
+`^*`. Synchronization may take time after boot.
+
+If the clock does not synchronize:
+
+```bash
+sudo journalctl -u chrony -n 50 --no-pager
+```
+
+Check network reachability, NTP/NTS sources, and certificate errors. Refer to
+**Part 2 — Raspberry Pi 4 — Ubuntu Server Time Synchronization** for the
+optional bootstrap repair used in the original installation. The bootstrap
+sources are unauthenticated and should not be deployed automatically.
+
+After time synchronization, retest normal DNS and the intentionally invalid
+DNSSEC test domain as described in Part 4.
+
+---
+
+## 4. Port 53 Not Responding
+
+Check which process owns DNS port 53:
+
+```bash
+sudo ss -tulpn | grep ':53 '
+```
+
+Technitium should listen on its configured IPv4/IPv6 addresses for UDP and
+TCP. If another process owns the required address/port, investigate possible
+conflicts with `systemd-resolved`, `dnsmasq`, BIND, or another DNS service.
+
+> **Important:** `systemd-resolved` may use the loopback stub address
+> `127.0.0.53`. Do not disable it blindly; determine whether it actually
+> conflicts with Technitium and whether the host depends on it.
+
+If Technitium is listening but remote clients time out, review UFW and
+network firewall policies for UDP/TCP port 53.
+
+---
+
+## 5. Web Interface Not Accessible
+
+Check the service and the configured web management port (default HTTP 5380):
+
+```bash
+sudo systemctl status dns.service
+sudo ss -tulpn | grep ':5380 '
+```
+
+From another device, test network reachability if ICMP is allowed:
+
+```bash
+ping -c 4 192.168.xxx.xx
+```
+
+A failed ping does **not** prove the web service is down; ICMP may be blocked.
+Review UFW and gateway policies for the actual management port. Restrict
+management access to trusted administration networks, and use HTTPS for
+ongoing administration rather than exposing HTTP management publicly.
+
+---
+
+## 6. DNS-over-TLS Forwarding Problems
+
+This installation uses the AdGuard DNS-over-TLS endpoints:
+
+| Endpoint | IP address | TLS hostname | Port |
+|---|---|---|---|
+| Primary upstream | `94.140.14.14` | `dns.adguard-dns.com` | TCP 853 |
+| Secondary upstream | `94.140.15.15` | `dns.adguard-dns.com` | TCP 853 |
+
+Verify the settings in **Settings → Proxy & Forwarders** on each server.
+Test certificate validation and outbound connectivity from the affected host:
+
+```bash
+openssl s_client \
+  -connect 94.140.14.14:853 \
+  -servername dns.adguard-dns.com \
+  -verify_hostname dns.adguard-dns.com \
+  -verify_return_error </dev/null
+```
+
+Repeat with `94.140.15.15`. Look for `Verify return code: 0 (ok)`.
+If it fails, check time synchronization, internet routing, certificate
+validation, and outbound TCP 853 rules.
+
+> **Important:** A successful `openssl` test confirms TLS connectivity,
+> not that Technitium actually used that upstream for a particular query.
+> Use the packet capture procedure in Part 4 for stronger evidence.
+
+---
+
+## 7. One DNS Server Works but the Other Does Not
+
+Query each server **by its distinct address** from the same client:
+
+```bash
+# Replace with the primary server's actual IP:
+dig @192.168.10.10 google.com A
+
+# Replace with the secondary server's actual IP:
+dig @192.168.10.11 google.com A
+```
+
+On the failing server, verify the service, port 53, firewall, forwarders,
+clock, and logs. Remember that two working DNS servers are not automatically
+a Technitium cluster; clustering is documented separately.
+
+---
+
+## 8. TVs, Gaming Systems, Discord, or Other Apps Stop Working
+
+Earlier DNS enforcement testing caused connectivity problems on some devices.
+The precise causes of those issues were **not** established for this
+Technitium installation. Use evidence-based troubleshooting:
+
+1. Confirm the device's assigned DNS servers and network/VLAN.
+2. Query the approved Technitium servers directly from a test client.
+3. Inspect Technitium query logs for failures or blocked domains.
+4. If Advanced Blocking is enabled, review the device's assigned policy.
+5. Inspect gateway firewall logs for DNS port 53, DoT port 853, and relevant
+   encrypted-DNS restrictions (including UDP 443 where applicable).
+6. Test a narrow, temporary exception only after identifying a legitimate
+   false positive; document the change and retest.
+
+> **Important:** Allowing a device to reach Technitium does not exempt it
+> from Technitium Advanced Blocking. Avoid broad bypass rules without evidence.
+
+---
+
+## 9. Collect Diagnostic Information
+
+When an issue persists, capture relevant output before changing settings:
+
+```bash
+hostnamectl
+ip -br addr
+ip route
+sudo systemctl status dns.service
+sudo ss -tulpn
+sudo ufw status verbose
+timedatectl
+sudo journalctl -u dns.service -n 100 --no-pager
+dig @192.168.xxx.xx google.com A
+```
+
+On hosts using Chrony, also run:
+
+```bash
+chronyc tracking
+chronyc sources -v
+```
+
+Record the affected server, time, error messages, recent changes, and tests
+performed. **Redact credentials, sensitive hostnames, and private network
+information before sharing diagnostic output publicly.**
+
+---
+
+## Troubleshooting Summary
+
+| Symptom | First checks |
+|---|---|
+| Service stopped | `systemctl status dns.service`, journal logs |
+| DNS timeout | Port 53, UFW, gateway/VLAN firewall |
+| DNSSEC error after reboot | Clock, Chrony, NTP/NTS sources |
+| Web interface inaccessible | Service, management port, firewall |
+| Upstream resolution fails | Forwarder settings, TCP 853, TLS certificate |
+| Only one server fails | Test each IP and compare configurations |
+| TV/game/app problems | Client DNS, query logs, blocking policies |
+
+After correcting a problem, rerun the relevant tests in **Part 4** and
+record the actual results. Do not mark a test as PASS unless it was performed.
 
 ---
 
