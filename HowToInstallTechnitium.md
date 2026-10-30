@@ -1042,92 +1042,240 @@ Configuration summary:
 
 ## Step 5 - Verify DNS Resolution
 
-From another computer on your network,
-open a terminal.
+After configuring the DNS forwarders, verify that both
+Technitium DNS servers can successfully resolve domain names.
 
-### Test Primary DNS
+Perform these tests from another computer on your network.
+
+> **Important:** Replace the example IP addresses below
+> with the actual IP addresses assigned to your
+> primary and secondary Technitium DNS servers.
+
+### Test Primary DNS (UDP)
+
+Open a terminal and run:
 
 ```bash
 dig @192.168.xxx.xx google.com A
 ```
 
-### Test Secondary DNS
+### Test Secondary DNS (UDP)
 
 ```bash
-dig @192.168.xx.xx google.com A
+dig @192.168.xxx.xx google.com A
 ```
 
-### Expected Result
+### Expected Results
 
-A successful query should contain:
+Both DNS servers should return:
 
 ```text
 status: NOERROR
 ```
 
-The response should also include an ANSWER SECTION
-containing one or more IPv4 addresses.
+The response should also contain an ANSWER SECTION
+with one or more IPv4 addresses.
 
-### Verify TCP DNS
+Example:
 
-Test the primary server:
-
-```bash
-dig +tcp @192.168.xxx.xx google.com A
+```text
+;; ANSWER SECTION:
+google.com.    300    IN    A    142.250.190.14
 ```
 
-Test the secondary server:
+> **Note:** The returned IP address and TTL may differ.
 
-```bash
-dig +tcp @192.168.xxx.xx google.com A
+### Verify DNS Server Response
+
+At the bottom of the `dig` output, locate the SERVER line.
+
+Example for the primary server:
+
+```text
+;; SERVER: 192.168.xxx.xx#53
 ```
 
-Both queries should complete successfully.
+This confirms which DNS server responded to the query.
 
 ---
+
+### Verify DNS over TCP
+
+DNS normally uses UDP port 53, but TCP port 53
+must also be available for proper DNS operation.
+
+#### Test Primary DNS (TCP)
+
+```bash
+dig +tcp @192.168.xxx.xx google.com A
+```
+
+#### Test Secondary DNS (TCP)
+
+```bash
+dig +tcp @192.168.xxx.xx google.com A
+```
+
+### Expected Results
+
+Both DNS servers should return:
+
+```text
+status: NOERROR
+```
+
+The response should also contain an ANSWER SECTION
+with one or more IPv4 addresses.
+
+Verify that the SERVER line identifies the
+correct Technitium DNS server.
+
+---
+
+### Verification Summary
+
+| Test | Expected Result |
+|------|-----------------|
+| Primary DNS - UDP | NOERROR + IPv4 address |
+| Secondary DNS - UDP | NOERROR + IPv4 address |
+| Primary DNS - TCP | NOERROR + IPv4 address |
+| Secondary DNS - TCP | NOERROR + IPv4 address |
+
+If all four tests complete successfully,
+both Technitium DNS servers are responding
+to DNS queries over UDP and TCP.
+
+**Status: DNS resolution verified after successful testing.**
+
+---
+
 
 ## Step 6 - Verify DNS Server Availability
 
-From another computer, verify that both servers
-are reachable.
+After verifying DNS resolution in Step 5, confirm that both Technitium DNS servers are reachable over the network.
 
-### Primary DNS
+Perform these tests from another computer on your network.
+
+> **Important:** Replace the example IP addresses with the actual addresses assigned to your primary and secondary Technitium DNS servers.
+
+### Test Primary DNS Server
+
+Open a terminal and run:
 
 ```bash
 ping -c 4 192.168.xxx.xx
 ```
 
-### Secondary DNS
+### Test Secondary DNS Server
 
 ```bash
 ping -c 4 192.168.xxx.xx
 ```
 
-> **Note:** Your network may block ICMP traffic.
-> I have enabled that on my network.
-> A failed ping does not necessarily mean
-> the DNS server is unavailable.
+### Expected Results
 
-The DNS queries from Step 5 are the more
-important tests.
+Both servers should respond to the ping requests.
+
+Example:
+
+```text
+64 bytes from 192.168.xxx.xx: icmp_seq=1 ttl=64 time=0.532 ms
+64 bytes from 192.168.xxx.xx: icmp_seq=2 ttl=64 time=0.487 ms
+64 bytes from 192.168.xxx.xx: icmp_seq=3 ttl=64 time=0.501 ms
+64 bytes from 192.168.xxx.xx: icmp_seq=4 ttl=64 time=0.493 ms
+```
+
+At the bottom of the output, look for:
+
+```text
+4 packets transmitted, 4 received, 0% packet loss
+```
+
+### Understanding the Results
+
+| Result | Meaning |
+|---|---|
+| 0% packet loss | All ping requests received responses |
+| 25% packet loss | One of four requests did not receive a response |
+| 50% packet loss | Two of four requests did not receive responses |
+| 100% packet loss | No ping responses were received |
+| Destination Host Unreachable | The destination could not be reached from the reporting device |
+
+### Important Notes
+
+> **ICMP Traffic:** Some networks block ICMP traffic through firewall rules.
+>
+> ICMP has been enabled in my network configuration to allow connectivity testing.
+>
+> A failed ping does not necessarily mean the Technitium DNS server is unavailable.
+>
+> The DNS resolution tests performed in Step 5 provide a more meaningful verification of DNS functionality.
+
+### Verification Summary
+
+| Test | Expected Result |
+|---|---|
+| Primary DNS Server | Ping replies received |
+| Secondary DNS Server | Ping replies received |
+| Packet Loss | Ideally 0% |
+
+**Status: Network connectivity verified after successful testing.**
 
 ---
-
 ## Step 7 - Verify Technitium Services
 
-On each Ubuntu DNS Server, run:
+After confirming network connectivity, verify that Technitium DNS Server is running and configured to start automatically when Ubuntu Server boots.
+
+Perform the following steps on **both Technitium DNS servers**:
+
+- Primary DNS — Proxmox Ubuntu Server VM
+- Secondary DNS — Raspberry Pi 4 running Ubuntu Server
+
+### Step 7.1 - Verify Technitium Service Status
+
+Connect to the Ubuntu Server using SSH.
+
+Run:
 
 ```bash
 sudo systemctl status dns.service
 ```
 
-Expected:
+### Expected Result
+
+Look for the following line:
 
 ```text
 Active: active (running)
 ```
 
-To verify that Technitium starts automatically:
+This confirms that the Technitium DNS service is currently running.
+
+### Step 7.2 - Verify Automatic Startup
+
+To verify that Technitium starts automatically when Ubuntu Server boots, run:
+
+```bash
+sudo systemctl is-enabled dns.service
+```
+
+### Expected Result
+
+```text
+enabled
+```
+
+This confirms that the service is configured to start automatically during the normal system boot process.
+
+### Step 7.3 - Enable Automatic Startup (If Necessary)
+
+If the service is not enabled, run:
+
+```bash
+sudo systemctl enable dns.service
+```
+
+Verify the setting again:
 
 ```bash
 sudo systemctl is-enabled dns.service
@@ -1139,130 +1287,537 @@ Expected:
 enabled
 ```
 
-If the service is not enabled, run:
+> **Note:** Enabling a service does not necessarily start it immediately. It configures the service to start during the normal boot process.
+
+### Step 7.4 - Start Technitium (If Not Running)
+
+If the service is not running, start it using:
 
 ```bash
-sudo systemctl enable dns.service
+sudo systemctl start dns.service
 ```
 
----
-
-## Step 8 - Verify Configuration After Reboot
-
-After completing the initial configuration,
-reboot each DNS server individually.
-
-> **Important:** Reboot one server at a time
-> to avoid unnecessary DNS interruptions.
-
-### Reboot Ubuntu Server
-
-```bash
-sudo reboot
-```
-
-After reconnecting, verify the service:
+Verify the service status:
 
 ```bash
 sudo systemctl status dns.service
 ```
 
-### Verify DNS Resolution
+Expected:
 
-Primary server:
-
-```bash
-dig @192.168.xxx.xx google.com
+```text
+Active: active (running)
 ```
 
-Secondary server:
+### Step 7.5 - Troubleshoot Service Issues
+
+If Technitium fails to start, review the service logs:
 
 ```bash
-dig @192.168.xxx.xx google.com
+sudo journalctl -u dns.service -n 50 --no-pager
 ```
 
-Both servers should return successful responses.
+This displays the 50 most recent journal entries associated with the Technitium DNS service.
 
-### Raspberry Pi Time Synchronization
+Check for errors related to:
 
-On the Raspberry Pi, also verify Chrony:
+- Service startup failures.
+- Port 53 conflicts.
+- Configuration errors.
+- File or directory permissions.
+- Missing dependencies.
 
-```bash
-timedatectl
-chronyc tracking
-chronyc sources -v
-```
+> **Important:** Do not repeatedly restart the service without reviewing the error messages. Identify the cause before making configuration changes.
 
-Confirm that the system clock is synchronized
-before relying on DNSSEC validation.
+### Verification Summary
+
+| Verification | Expected Result |
+|---|---|
+| Primary DNS service | Active (running) |
+| Secondary DNS service | Active (running) |
+| Primary automatic startup | Enabled |
+| Secondary automatic startup | Enabled |
+| Service logs | No unresolved critical startup errors |
+
+### Result
+
+If both Technitium DNS services are running and enabled, the service verification is complete.
+
+**Status: Technitium services verified after successful testing.**
+
+---
+## Step 8 - Verify Configuration After Reboot
+
+After completing the initial configuration, verify that both Technitium DNS servers start automatically and function correctly after a reboot.
+
+This test confirms that:
+
+- Ubuntu Server boots successfully.
+- Technitium DNS starts automatically.
+- DNS resolution works after reboot.
+- The Raspberry Pi 4 synchronizes its system clock.
+- DNSSEC-related time synchronization problems do not return.
+
+> **Important:** Reboot one DNS server at a time to avoid unnecessary DNS interruptions. If these servers are already serving network clients, verify that the remaining DNS server can handle requests during the reboot.
 
 ---
 
-## Initial Configuration Complete
+### Step 8.1 - Reboot the Primary DNS Server
 
-At this point:
+Connect to the primary Technitium DNS server running on the Proxmox Ubuntu Server VM.
 
-- Both Technitium DNS servers are installed.
-- Administrator credentials have been configured.
-- DNS listening settings have been reviewed.
-- DNS forwarding has been configured if desired.
-- UDP and TCP DNS resolution have been tested.
-- Technitium services are running.
-- Both servers have been tested after reboot.
-- Raspberry Pi time synchronization has been verified.
-
-**The initial Technitium installation and configuration
-are complete.**
-
-> **Next Step:** Configure Technitium DNS clustering
-> to connect the primary and secondary servers.
->
-> Clustering will be documented separately.
-
----
-
-# Part 4 - Verify DNS Resolution
-
-Install DNS utilities if necessary:
+Run:
 
 ```bash
-sudo apt install dnsutils -y
+sudo reboot
 ```
 
-Test the primary Technitium server:
+Wait for Ubuntu Server to finish rebooting.
+
+Reconnect using SSH.
+
+### Verify Technitium Service
+
+Run:
 
 ```bash
-dig @192.168.xxx.xx google.com
+sudo systemctl status dns.service
 ```
 
-Test the secondary Technitium server:
+Expected:
+
+```text
+Active: active (running)
+```
+
+Verify automatic startup:
 
 ```bash
-dig @192.168.xxx.xx google.com
+systemctl is-enabled dns.service
 ```
 
-A successful DNS query should return:
+Expected:
+
+```text
+enabled
+```
+
+### Verify Primary DNS Resolution
+
+From another computer on your network, run:
+
+```bash
+dig @192.168.xxx.xx google.com A
+```
+
+Expected:
 
 ```text
 status: NOERROR
 ```
 
-And an ANSWER SECTION containing DNS records.
+The response should also contain an ANSWER SECTION with one or more IPv4 addresses.
 
-## DNSSEC Validation Verification
+> **Note:** Replace the example IP address with the address assigned to your primary Technitium DNS server.
 
-After verifying normal DNS resolution, test how the
-Technitium server handles invalid DNSSEC signatures.
+---
 
-### Test Secondary DNS Server
+### Step 8.2 - Reboot the Secondary DNS Server
+
+After verifying that the primary server is functioning correctly, connect to the Raspberry Pi 4 running Ubuntu Server.
 
 Run:
+
+```bash
+sudo reboot
+```
+
+Wait for the Raspberry Pi to finish rebooting.
+
+Reconnect using SSH.
+
+### Verify Technitium Service
+
+Run:
+
+```bash
+sudo systemctl status dns.service
+```
+
+Expected:
+
+```text
+Active: active (running)
+```
+
+Verify automatic startup:
+
+```bash
+systemctl is-enabled dns.service
+```
+
+Expected:
+
+```text
+enabled
+```
+
+### Verify Secondary DNS Resolution
+
+From another computer on your network, run:
+
+```bash
+dig @192.168.xxx.xx google.com A
+```
+
+Expected:
+
+```text
+status: NOERROR
+```
+
+The response should also contain an ANSWER SECTION with one or more IPv4 addresses.
+
+---
+
+### Step 8.3 - Verify Raspberry Pi Time Synchronization
+
+The Raspberry Pi 4 does not have a built-in battery-backed real-time clock (RTC).
+
+Because of this, Ubuntu Server may initially boot with an incorrect system time.
+
+Earlier in this guide, Chrony was configured to correct the system clock automatically.
+
+We must verify that this configuration continues to work after reboot.
+
+**Do not manually set the system time or restart Chrony before performing these checks.**
+
+On the Raspberry Pi, run:
+
+```bash
+date
+```
+
+Verify that the current date and time are correct.
+
+Next, run:
+
+```bash
+timedatectl
+```
+
+Expected:
+
+```text
+System clock synchronized: yes
+NTP service: active
+```
+
+Check Chrony tracking:
+
+```bash
+chronyc tracking
+```
+
+Expected:
+
+```text
+Leap status     : Normal
+```
+
+Finally, verify the available NTP sources:
+
+```bash
+chronyc sources -v
+```
+
+Look for a selected time source indicated by:
+
+```text
+^*
+```
+
+> **Note:** Synchronization may take some time after reboot. If the clock is initially incorrect, wait for Chrony to synchronize and check again.
+>
+> If synchronization does not occur, review the Chrony boot-time configuration documented earlier in this guide.
+
+---
+
+### Step 8.4 - Verify DNSSEC Behavior After Reboot
+
+Because an incorrect system clock previously caused DNSSEC validation errors on the Raspberry Pi, perform an additional DNSSEC test.
+
+From another computer, run:
 
 ```bash
 dig @192.168.xxx.xx dnssec-failed.org A
 ```
 
+Use the IP address of the secondary Technitium DNS server.
+
 ### Expected Result
+
+```text
+status: SERVFAIL
+```
+
+The response may also include:
+
+```text
+EDE: 6 (DNSSEC Bogus)
+```
+
+The domain `dnssec-failed.org` intentionally contains invalid DNSSEC signatures.
+
+A DNSSEC-validating resolver should reject the response.
+
+> **Important:** If an upstream DNS provider performs DNSSEC validation, the rejection may occur upstream rather than within Technitium itself.
+>
+> This test confirms that invalid DNSSEC data is rejected somewhere in the DNS resolution path.
+
+### Verify Normal DNS Resolution
+
+Also test a legitimate domain:
+
+```bash
+dig @192.168.xxx.xx cloudflare.com A
+```
+
+Expected:
+
+```text
+status: NOERROR
+```
+
+The response should contain one or more IPv4 addresses.
+
+Together, these tests help confirm that normal DNS resolution works and invalid DNSSEC data is rejected after reboot.
+
+---
+
+### Step 8.5 - Final Verification
+
+After both servers have been rebooted and tested, verify the following:
+
+| Verification | Primary DNS | Secondary DNS |
+|---|---|---|
+| Ubuntu Server boots successfully | PASS / FAIL | PASS / FAIL |
+| Technitium service running | PASS / FAIL | PASS / FAIL |
+| Technitium automatic startup enabled | PASS / FAIL | PASS / FAIL |
+| DNS resolution successful | PASS / FAIL | PASS / FAIL |
+| DNSSEC-invalid domain rejected | Not tested | PASS / FAIL |
+| Chrony synchronized | Not tested | PASS / FAIL |
+
+> **Note:** Replace PASS / FAIL with the actual results after completing the tests. A test that has not been performed should be marked NOT TESTED.
+
+---
+
+## Initial Configuration Complete
+
+After successfully completing all verification steps:
+
+- Both Technitium DNS servers are installed.
+- Administrator credentials have been configured.
+- DNS listening settings have been reviewed.
+- DNS forwarding has been configured.
+- UDP and TCP DNS resolution have been tested.
+- Both Technitium services are running.
+- Automatic service startup has been verified.
+- Both servers have been tested after reboot.
+- Raspberry Pi time synchronization has been verified.
+- DNSSEC behavior has been tested after reboot.
+
+**The initial Technitium DNS installation and configuration are complete after all required tests pass.**
+
+> **Next Step:** Configure Technitium DNS clustering to connect the primary and secondary servers.
+>
+> Clustering will be documented separately.
+
+---
+# Part 4 - Verify DNS Resolution
+
+After installing and configuring both Technitium DNS servers,
+perform the following tests to verify DNS resolution,
+network connectivity, DNSSEC behavior, and DNS forwarding.
+
+These tests should be performed after completing the initial
+configuration and reboot verification in Part 3.
+
+> **Important:** Replace the example IP addresses throughout
+> this section with the actual IP addresses assigned to your
+> primary and secondary Technitium DNS servers.
+
+---
+
+## Step 1 - Install DNS Utilities
+
+From another Linux computer on your network,
+install the DNS utilities if necessary.
+
+On Ubuntu:
+
+```bash
+sudo apt update
+sudo apt install dnsutils -y
+```
+
+The `dig` utility allows you to send DNS queries directly
+to a specified DNS server.
+
+---
+
+## Step 2 - Verify Primary and Secondary DNS Resolution
+
+Verify that both Technitium DNS servers can resolve
+external domain names.
+
+### Test Primary DNS Server
+
+```bash
+dig @192.168.xxx.xx google.com A
+```
+
+### Test Secondary DNS Server
+
+```bash
+dig @192.168.xxx.xx google.com A
+```
+
+### Expected Results
+
+Both queries should return:
+
+```text
+status: NOERROR
+```
+
+The response should contain an ANSWER SECTION
+with one or more IPv4 addresses.
+
+Example:
+
+```text
+;; ANSWER SECTION:
+google.com.    300    IN    A    142.250.190.14
+```
+
+> **Note:** The returned IP addresses and TTL values
+> may differ from the example.
+
+At the bottom of the response, verify the SERVER line:
+
+```text
+;; SERVER: 192.168.xxx.xx#53
+```
+
+This confirms which DNS server responded.
+
+---
+
+## Step 3 - Verify DNS over TCP
+
+DNS normally uses UDP port 53, but TCP port 53
+is also required for proper DNS operation.
+
+Verify that both Technitium servers respond
+to DNS queries over TCP.
+
+### Test Primary DNS Server
+
+```bash
+dig +tcp @192.168.xxx.xx google.com A
+```
+
+### Test Secondary DNS Server
+
+```bash
+dig +tcp @192.168.xxx.xx google.com A
+```
+
+### Expected Results
+
+Both queries should return:
+
+```text
+status: NOERROR
+```
+
+An ANSWER SECTION containing one or more IPv4 addresses
+should also be present.
+
+If either query fails, verify that TCP port 53 is allowed
+through the server firewall and applicable network firewall rules.
+
+---
+
+## Step 4 - Verify DNSSEC Behavior
+
+DNS Security Extensions (DNSSEC) help protect DNS
+responses against certain forms of tampering.
+
+The following tests check how the DNS resolution path
+handles valid and invalid DNSSEC data.
+
+### Test a Valid Domain
+
+Run the following command against the primary server:
+
+```bash
+dig @192.168.xxx.xx cloudflare.com A +dnssec
+```
+
+Repeat the test against the secondary server:
+
+```bash
+dig @192.168.xxx.xx cloudflare.com A +dnssec
+```
+
+### Expected Results
+
+Both queries should return:
+
+```text
+status: NOERROR
+```
+
+The response should contain an ANSWER SECTION
+with one or more IPv4 addresses.
+
+Depending on the resolver configuration,
+the response may contain the authenticated data flag:
+
+```text
+flags: qr rd ra ad
+```
+
+The `ad` flag indicates that the response has been
+authenticated using DNSSEC.
+
+> **Note:** The absence of the `ad` flag does not
+> necessarily mean that DNS resolution failed.
+> The resolver configuration and upstream DNS provider
+> can affect whether the flag appears.
+
+### Test an Invalid DNSSEC Domain
+
+The domain `dnssec-failed.org` intentionally contains
+invalid DNSSEC signatures.
+
+A DNSSEC-validating resolver should reject its records.
+
+#### Test Primary DNS Server
+
+```bash
+dig @192.168.xxx.xx dnssec-failed.org A
+```
+
+#### Test Secondary DNS Server
+
+```bash
+dig @192.168.xxx.xx dnssec-failed.org A
+```
+
+### Expected Results
 
 ```text
 status: SERVFAIL
@@ -1274,9 +1829,12 @@ The response may also contain:
 EDE: 6 (DNSSEC Bogus)
 ```
 
-### Actual Test Results
+### Previously Recorded Test Results
 
-Test Date: October 19, 2026
+**Test Date:** October 19, 2026
+
+The following results were recorded during testing
+of the secondary Technitium DNS server:
 
 ```text
 status: SERVFAIL
@@ -1287,75 +1845,646 @@ EDE: 13 (Cached Error)
 
 ### Explanation
 
-The domain `dnssec-failed.org` is intentionally
-configured with invalid DNSSEC signatures.
+The invalid DNSSEC domain was rejected.
 
-A DNSSEC-validating resolver should reject the
-invalid response.
+This is the expected behavior when DNSSEC validation
+is performed successfully somewhere in the DNS
+resolution path.
 
-**Important:** A validating upstream DNS provider
-may also reject the response.
+**Important:** When Technitium uses an upstream DNS
+provider that performs DNSSEC validation, the upstream
+provider may reject the invalid response.
 
-This test confirms that invalid DNSSEC data was
-rejected somewhere in the resolution path.
-It does not independently prove that Technitium
-performed the validation.
+Therefore, this test does not independently prove
+that Technitium performed DNSSEC validation.
 
-### Result
+### Recorded Result
 
-DNSSEC-invalid domain rejected: PASS
+```text
+Secondary DNS - Invalid DNSSEC Domain: PASS
+```
 
+> **Note:** The PASS result above refers to the
+> October 19, 2026 test. Other verification results
+> should be recorded after completing their tests.
 
 ---
 
-# Part 5 - Troubleshooting
+## Step 5 - Verify DNS-over-TLS Forwarding
 
-## Technitium Service Not Running
+If DNS-over-TLS was configured in Part 3,
+verify that the configured upstream DNS servers
+are reachable.
 
-Check the service:
+For this installation, AdGuard DNS was configured
+as the upstream provider.
+
+### Configured Forwarders
+
+| Setting | Configuration |
+|---|---|
+| DNS Provider | AdGuard DNS |
+| Primary Forwarder | 94.140.14.14 |
+| Secondary Forwarder | 94.140.15.15 |
+| Forwarder Hostname | dns.adguard-dns.com |
+| Forwarder Protocol | DNS-over-TLS |
+| Port | TCP 853 |
+| Concurrent Forwarding | Enabled |
+| Forwarder Concurrency | 2 |
+
+> **Note:** These are the forwarders used in this
+> installation. Other DNS providers may use different
+> addresses, hostnames, and protocols.
+
+### Step 5.1 - Verify Forwarder Configuration
+
+Log in to the Technitium DNS web interface.
+
+1. Open **Settings**.
+2. Navigate to **Proxy & Forwarders**.
+3. Locate the configured forwarders.
+4. Verify the forwarder addresses and hostnames.
+5. Verify that the forwarder protocol is set to **DNS-over-TLS**.
+6. Confirm that the settings have been saved.
+
+Perform this verification on both DNS servers.
+
+### Step 5.2 - Test DNS-over-TLS Connectivity
+
+Connect to the primary Ubuntu DNS server using SSH.
+
+Run:
 
 ```bash
-sudo systemctl status dns.service
+openssl s_client \
+  -connect 94.140.14.14:853 \
+  -servername dns.adguard-dns.com \
+  -verify_hostname dns.adguard-dns.com \
+  -verify_return_error </dev/null
 ```
 
-View recent service logs:
+Repeat the test using the secondary AdGuard endpoint:
 
 ```bash
-sudo journalctl -u dns.service -n 50 --no-pager
-
+openssl s_client \
+  -connect 94.140.15.15:853 \
+  -servername dns.adguard-dns.com \
+  -verify_hostname dns.adguard-dns.com \
+  -verify_return_error </dev/null
 ```
 
-## DNS Resolution Fails
+### Expected Results
 
-Check DNS resolution:
+Look for:
+
+```text
+Verification: OK
+```
+
+Or:
+
+```text
+Verify return code: 0 (ok)
+```
+
+A successful result indicates that the server can
+establish a TLS connection and validate the certificate
+presented by the upstream DNS endpoint.
+
+Repeat these tests from the secondary Technitium server.
+
+> **Important:** These commands test TLS connectivity
+> to the upstream DNS provider.
+>
+> They do not independently prove that Technitium
+> is forwarding DNS queries through that connection.
+
+### Step 5.3 - Verify Actual Forwarding Traffic
+
+To confirm that Technitium is communicating with
+the configured upstream DNS servers over TCP port 853,
+inspect the network traffic.
+
+On the Technitium server, run:
 
 ```bash
-dig @192.168.xxx.xx google.com
+sudo tcpdump -ni any \
+  'tcp port 853 and (host 94.140.14.14 or host 94.140.15.15)'
 ```
 
-## DNSSEC errors after reboot
+If `tcpdump` is not installed:
 
 ```bash
-timedatectl
-chronyc tracking
-chronyc sources -v
+sudo apt install tcpdump -y
 ```
 
-## DNS port 53 not responding  
-Check whether Technitium is listening on port 53:  
-```bash
-sudo ss -tulpn | grep ':53 '
-```
-
-## Web Interface Not Accessible
-Technitium web interface not responding  
-Verify that Technitium is listening on port 5380:
+While the capture is running, generate a DNS query
+from another computer:
 
 ```bash
-sudo ss -tulpn | grep ':5380 '
+dig @192.168.xxx.xx example.com A
 ```
-For remote access problems, also verify that the server firewall and your gateway rules permit the intended traffic.
-Check firewall rules and network connectivity.
+
+You may need to query a domain that is not already
+cached by Technitium.
+
+### Expected Results
+
+The packet capture should show TCP traffic
+between the Technitium server and one or both
+configured AdGuard DNS endpoints.
+
+> **Note:** Because concurrent forwarding is enabled,
+> Technitium may communicate with either or both
+> configured forwarders.
+>
+> Cached DNS responses may not generate new
+> upstream traffic.
+>
+> Traffic on TCP port 853 provides evidence of
+> DNS-over-TLS connectivity. A packet capture showing
+> an established TLS session carrying traffic during
+> an uncached DNS query provides stronger evidence
+> that forwarding is occurring over TLS.
+
+Press `Ctrl+C` to stop the packet capture.
+
+---
+
+## Step 6 - Final DNS Verification Checklist
+
+After completing the tests, record the results.
+
+| Verification | Primary DNS | Secondary DNS |
+|---|---|---|
+| DNS resolution over UDP | PASS / FAIL | PASS / FAIL |
+| DNS resolution over TCP | PASS / FAIL | PASS / FAIL |
+| Valid domain resolves | PASS / FAIL | PASS / FAIL |
+| Invalid DNSSEC domain rejected | PASS / FAIL | PASS / FAIL |
+| DNS-over-TLS configuration reviewed | PASS / FAIL | PASS / FAIL |
+| Upstream TLS connectivity | PASS / FAIL | PASS / FAIL |
+| Forwarding traffic observed | PASS / FAIL | PASS / FAIL |
+
+> **Important:** Replace PASS / FAIL with the actual
+> test results. Use NOT TESTED for any verification
+> that has not been performed.
+
+### Verification Notes
+
+Record any errors, unexpected responses,
+or configuration changes discovered during testing.
+
+If DNS resolution fails, proceed to
+**Part 5 - Troubleshooting**.
+
+---
+
+## DNS Verification Complete
+
+After successfully completing the required tests,
+the following have been verified:
+
+- Both Technitium DNS servers resolve external domains.
+- DNS resolution works over UDP and TCP.
+- Valid DNS responses are returned.
+- Invalid DNSSEC data is rejected somewhere in the resolution path.
+- DNS-over-TLS forwarder settings have been reviewed.
+- Connectivity to the configured upstream DNS servers has been tested.
+- Forwarding traffic has been examined.
+
+**DNS verification is complete when the required tests
+have passed and their results have been recorded.**
+
+> **Next Step:** Continue to Part 5 - Troubleshooting
+> for information about diagnosing common
+> Technitium DNS problems.
+
+---
+
+# Part 4 - Verify DNS Resolution
+
+After installing and configuring both Technitium DNS servers,
+perform the following tests to verify DNS resolution,
+network connectivity, DNSSEC behavior, and DNS forwarding.
+
+These tests should be performed after completing the initial
+configuration and reboot verification in Part 3.
+
+> **Important:** Replace the example IP addresses throughout
+> this section with the actual IP addresses assigned to your
+> primary and secondary Technitium DNS servers.
+
+---
+
+## Step 1 - Install DNS Utilities
+
+From another Linux computer on your network,
+install the DNS utilities if necessary.
+
+On Ubuntu:
+
+```bash
+sudo apt update
+sudo apt install dnsutils -y
+```
+
+The `dig` utility allows you to send DNS queries directly
+to a specified DNS server.
+
+---
+
+## Step 2 - Verify Primary and Secondary DNS Resolution
+
+Verify that both Technitium DNS servers can resolve
+external domain names.
+
+### Test Primary DNS Server
+
+```bash
+dig @192.168.xxx.xx google.com A
+```
+
+### Test Secondary DNS Server
+
+```bash
+dig @192.168.xxx.xx google.com A
+```
+
+### Expected Results
+
+Both queries should return:
+
+```text
+status: NOERROR
+```
+
+The response should contain an ANSWER SECTION
+with one or more IPv4 addresses.
+
+Example:
+
+```text
+;; ANSWER SECTION:
+google.com.    300    IN    A    142.250.190.14
+```
+
+> **Note:** The returned IP addresses and TTL values
+> may differ from the example.
+
+At the bottom of the response, verify the SERVER line:
+
+```text
+;; SERVER: 192.168.xxx.xx#53
+```
+
+This confirms which DNS server responded.
+
+---
+
+## Step 3 - Verify DNS over TCP
+
+DNS normally uses UDP port 53, but TCP port 53
+is also required for proper DNS operation.
+
+Verify that both Technitium servers respond
+to DNS queries over TCP.
+
+### Test Primary DNS Server
+
+```bash
+dig +tcp @192.168.xxx.xx google.com A
+```
+
+### Test Secondary DNS Server
+
+```bash
+dig +tcp @192.168.xxx.xx google.com A
+```
+
+### Expected Results
+
+Both queries should return:
+
+```text
+status: NOERROR
+```
+
+An ANSWER SECTION containing one or more IPv4 addresses
+should also be present.
+
+If either query fails, verify that TCP port 53 is allowed
+through the server firewall and applicable network firewall rules.
+
+---
+
+## Step 4 - Verify DNSSEC Behavior
+
+DNS Security Extensions (DNSSEC) help protect DNS
+responses against certain forms of tampering.
+
+The following tests check how the DNS resolution path
+handles valid and invalid DNSSEC data.
+
+### Test a Valid Domain
+
+Run the following command against the primary server:
+
+```bash
+dig @192.168.xxx.xx cloudflare.com A +dnssec
+```
+
+Repeat the test against the secondary server:
+
+```bash
+dig @192.168.xxx.xx cloudflare.com A +dnssec
+```
+
+### Expected Results
+
+Both queries should return:
+
+```text
+status: NOERROR
+```
+
+The response should contain an ANSWER SECTION
+with one or more IPv4 addresses.
+
+Depending on the resolver configuration,
+the response may contain the authenticated data flag:
+
+```text
+flags: qr rd ra ad
+```
+
+The `ad` flag indicates that the response has been
+authenticated using DNSSEC.
+
+> **Note:** The absence of the `ad` flag does not
+> necessarily mean that DNS resolution failed.
+> The resolver configuration and upstream DNS provider
+> can affect whether the flag appears.
+
+### Test an Invalid DNSSEC Domain
+
+The domain `dnssec-failed.org` intentionally contains
+invalid DNSSEC signatures.
+
+A DNSSEC-validating resolver should reject its records.
+
+#### Test Primary DNS Server
+
+```bash
+dig @192.168.xxx.xx dnssec-failed.org A
+```
+
+#### Test Secondary DNS Server
+
+```bash
+dig @192.168.xxx.xx dnssec-failed.org A
+```
+
+### Expected Results
+
+```text
+status: SERVFAIL
+```
+
+The response may also contain:
+
+```text
+EDE: 6 (DNSSEC Bogus)
+```
+
+### Previously Recorded Test Results
+
+**Test Date:** October 19, 2026
+
+The following results were recorded during testing
+of the secondary Technitium DNS server:
+
+```text
+status: SERVFAIL
+EDE: 6 (DNSSEC Bogus)
+EDE: 22 (No Reachable Authority)
+EDE: 13 (Cached Error)
+```
+
+### Explanation
+
+The invalid DNSSEC domain was rejected.
+
+This is the expected behavior when DNSSEC validation
+is performed successfully somewhere in the DNS
+resolution path.
+
+**Important:** When Technitium uses an upstream DNS
+provider that performs DNSSEC validation, the upstream
+provider may reject the invalid response.
+
+Therefore, this test does not independently prove
+that Technitium performed DNSSEC validation.
+
+### Recorded Result
+
+```text
+Secondary DNS - Invalid DNSSEC Domain: PASS
+```
+
+> **Note:** The PASS result above refers to the
+> October 19, 2026 test. Other verification results
+> should be recorded after completing their tests.
+
+---
+
+## Step 5 - Verify DNS-over-TLS Forwarding
+
+If DNS-over-TLS was configured in Part 3,
+verify that the configured upstream DNS servers
+are reachable.
+
+For this installation, AdGuard DNS was configured
+as the upstream provider.
+
+### Configured Forwarders
+
+| Setting | Configuration |
+|---|---|
+| DNS Provider | AdGuard DNS |
+| Primary Forwarder | 94.140.14.14 |
+| Secondary Forwarder | 94.140.15.15 |
+| Forwarder Hostname | dns.adguard-dns.com |
+| Forwarder Protocol | DNS-over-TLS |
+| Port | TCP 853 |
+| Concurrent Forwarding | Enabled |
+| Forwarder Concurrency | 2 |
+
+> **Note:** These are the forwarders used in this
+> installation. Other DNS providers may use different
+> addresses, hostnames, and protocols.
+
+### Step 5.1 - Verify Forwarder Configuration
+
+Log in to the Technitium DNS web interface.
+
+1. Open **Settings**.
+2. Navigate to **Proxy & Forwarders**.
+3. Locate the configured forwarders.
+4. Verify the forwarder addresses and hostnames.
+5. Verify that the forwarder protocol is set to **DNS-over-TLS**.
+6. Confirm that the settings have been saved.
+
+Perform this verification on both DNS servers.
+
+### Step 5.2 - Test DNS-over-TLS Connectivity
+
+Connect to the primary Ubuntu DNS server using SSH.
+
+Run:
+
+```bash
+openssl s_client \
+  -connect 94.140.14.14:853 \
+  -servername dns.adguard-dns.com \
+  -verify_hostname dns.adguard-dns.com \
+  -verify_return_error </dev/null
+```
+
+Repeat the test using the secondary AdGuard endpoint:
+
+```bash
+openssl s_client \
+  -connect 94.140.15.15:853 \
+  -servername dns.adguard-dns.com \
+  -verify_hostname dns.adguard-dns.com \
+  -verify_return_error </dev/null
+```
+
+### Expected Results
+
+Look for:
+
+```text
+Verification: OK
+```
+
+Or:
+
+```text
+Verify return code: 0 (ok)
+```
+
+A successful result indicates that the server can
+establish a TLS connection and validate the certificate
+presented by the upstream DNS endpoint.
+
+Repeat these tests from the secondary Technitium server.
+
+> **Important:** These commands test TLS connectivity
+> to the upstream DNS provider.
+>
+> They do not independently prove that Technitium
+> is forwarding DNS queries through that connection.
+
+### Step 5.3 - Verify Actual Forwarding Traffic
+
+To confirm that Technitium is communicating with
+the configured upstream DNS servers over TCP port 853,
+inspect the network traffic.
+
+On the Technitium server, run:
+
+```bash
+sudo tcpdump -ni any \
+  'tcp port 853 and (host 94.140.14.14 or host 94.140.15.15)'
+```
+
+If `tcpdump` is not installed:
+
+```bash
+sudo apt install tcpdump -y
+```
+
+While the capture is running, generate a DNS query
+from another computer:
+
+```bash
+dig @192.168.xxx.xx example.com A
+```
+
+You may need to query a domain that is not already
+cached by Technitium.
+
+### Expected Results
+
+The packet capture should show TCP traffic
+between the Technitium server and one or both
+configured AdGuard DNS endpoints.
+
+> **Note:** Because concurrent forwarding is enabled,
+> Technitium may communicate with either or both
+> configured forwarders.
+>
+> Cached DNS responses may not generate new
+> upstream traffic.
+>
+> Traffic on TCP port 853 provides evidence of
+> DNS-over-TLS connectivity. A packet capture showing
+> an established TLS session carrying traffic during
+> an uncached DNS query provides stronger evidence
+> that forwarding is occurring over TLS.
+
+Press `Ctrl+C` to stop the packet capture.
+
+---
+
+## Step 6 - Final DNS Verification Checklist
+
+After completing the tests, record the results.
+
+| Verification | Primary DNS | Secondary DNS |
+|---|---|---|
+| DNS resolution over UDP | PASS / FAIL | PASS / FAIL |
+| DNS resolution over TCP | PASS / FAIL | PASS / FAIL |
+| Valid domain resolves | PASS / FAIL | PASS / FAIL |
+| Invalid DNSSEC domain rejected | PASS / FAIL | PASS / FAIL |
+| DNS-over-TLS configuration reviewed | PASS / FAIL | PASS / FAIL |
+| Upstream TLS connectivity | PASS / FAIL | PASS / FAIL |
+| Forwarding traffic observed | PASS / FAIL | PASS / FAIL |
+
+> **Important:** Replace PASS / FAIL with the actual
+> test results. Use NOT TESTED for any verification
+> that has not been performed.
+
+### Verification Notes
+
+Record any errors, unexpected responses,
+or configuration changes discovered during testing.
+
+If DNS resolution fails, proceed to
+**Part 5 - Troubleshooting**.
+
+---
+
+## DNS Verification Complete
+
+After successfully completing the required tests,
+the following have been verified:
+
+- Both Technitium DNS servers resolve external domains.
+- DNS resolution works over UDP and TCP.
+- Valid DNS responses are returned.
+- Invalid DNSSEC data is rejected somewhere in the resolution path.
+- DNS-over-TLS forwarder settings have been reviewed.
+- Connectivity to the configured upstream DNS servers has been tested.
+- Forwarding traffic has been examined.
+
+**DNS verification is complete when the required tests
+have passed and their results have been recorded.**
+
+> **Next Step:** Continue to Part 5 - Troubleshooting
+> for information about diagnosing common
+> Technitium DNS problems.
 
 ---
 
