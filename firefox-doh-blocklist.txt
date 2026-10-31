@@ -1,0 +1,16 @@
+# Firefox DNS-over-HTTPS
+mozilla.cloudflare-dns.com
+firefox.dns.nextdns.io
+
+# Cloudflare
+cloudflare-dns.com
+one.one.one.one
+
+# Google
+dns.google
+
+# Quad9
+dns.quad9.net
+
+# NextDNS
+dns.nextdns.io
