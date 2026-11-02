@@ -24,7 +24,7 @@ as an example.
 > Replace these addresses with the IP addresses assigned
 > to your own network.
 >
-> For example, if your network uses `192.168.10.0/24`,
+> For example, if your network uses `10.0/24`,
 > you might configure:
 >
 > - Primary DNS: `192.168.xxx.xxx`
