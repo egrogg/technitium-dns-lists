@@ -1149,7 +1149,139 @@ Configuration summary:
 **Status: Configuration documented.**
 
 ---
+## Configure Built-in DNS Server Logging
 
+Technitium DNS Server includes built-in logging for server errors, warnings, and administrative events. This logging does not require installing an additional application.
+
+### Step 1 — Access Logging Settings
+
+1. Log in to the Technitium DNS Server web interface.
+2. Navigate to **Settings**.
+3. Select the **Logging** section.
+4. Review the existing logging configuration.
+
+### Step 2 — Configure Logging
+
+Use the following settings:
+
+| Setting | Configuration |
+|---|---|
+| Enable Logging To | File |
+| Ignore Resolver Error Logs | Unchecked |
+| No Stack Trace | Unchecked |
+| Log All Queries | Unchecked |
+| Use Local Time | Checked |
+| Log Folder Path | `/var/log/technitium/dns` |
+| Max Log File Days | 30 |
+
+**Note:** Leave **Log All Queries** disabled when using the Query Logs (SQLite) app to avoid duplicating detailed query records.
+
+Click **Save Settings**.
+
+### Step 3 — Verify Built-in Logging
+
+On Ubuntu Server, run:
+
+```bash
+sudo ls -lah /var/log/technitium/dns
+```
+
+Verify that the directory contains Technitium log files.
+
+To identify recently modified log files:
+
+```bash
+sudo find /var/log/technitium/dns -maxdepth 1 -type f -printf '%T@ %p\n' | sort -nr | head
+```
+
+Repeat these steps on both the primary Proxmox VM and secondary Raspberry Pi 4.
+
+---
+
+## Install and Configure Query Logs (SQLite)
+
+The Query Logs (SQLite) app provides persistent DNS query history, allowing administrators to investigate DNS requests, client activity, and blocked domains.
+
+### Step 1 — Install the App
+
+1. Log in to the Technitium DNS Server web interface.
+2. Navigate to **Apps**.
+3. Open **App Store**.
+4. Locate **Query Logs (Sqlite)**.
+5. Click **Install**.
+6. Wait for installation to complete.
+
+### Step 2 — Configure SQLite Logging
+
+Open **Apps → Query Logs (Sqlite) → Config**.
+
+Use the following configuration:
+
+```json
+{
+  "enableLogging": true,
+  "maxQueueSize": 200000,
+  "maxLogDays": 30,
+  "maxLogRecords": 100000,
+  "enableVacuum": false,
+  "useInMemoryDb": false,
+  "sqliteDbPath": "querylogs.db",
+  "connectionString": "Data Source='{sqliteDbPath}'; Cache=Shared;"
+}
+```
+
+Click **Save**.
+
+### Configuration Explanation
+
+| Setting | Purpose |
+|---|---|
+| enableLogging | Enables DNS query logging |
+| maxQueueSize | Maximum queued log entries |
+| maxLogDays | Maximum retention age |
+| maxLogRecords | Maximum retained query records |
+| enableVacuum | Controls SQLite database vacuuming |
+| useInMemoryDb | Stores database on disk when false |
+| sqliteDbPath | SQLite database filename |
+| connectionString | SQLite database connection configuration |
+
+**Important:** The database may reach the record limit before 30 days have elapsed. Actual retention depends on DNS query volume.
+
+### Step 3 — Verify Query Logging
+
+From another computer, test the primary server:
+
+```bash
+dig @192.168.10.10 example.com
+```
+
+Test the secondary server:
+
+```bash
+dig @192.168.10.11 example.com
+```
+
+Replace these example addresses with your actual DNS server IPs.
+
+In the Technitium web console:
+
+1. Navigate to **Logs → Query Logs**.
+2. Select the SQLite query log source.
+3. Search for `example.com`.
+4. Verify that the query was recorded.
+5. Confirm the client IP address, timestamp, response code, and query type.
+
+### Step 4 — Verify Both DNS Servers
+
+Repeat the installation and configuration on both Technitium DNS servers.
+
+Query log databases are maintained locally on each server. Do not assume that query history is synchronized between cluster members.
+
+**Storage Note:** SQLite logging generates ongoing disk writes. When using a Raspberry Pi with microSD storage, monitor available disk space and storage health.
+
+### Expected Result
+
+Both Technitium DNS servers have built-in logging enabled and Query Logs (SQLite) configured to retain searchable DNS query history.
 ## Step 5 - Verify DNS Resolution
 
 After configuring the DNS forwarders, verify that both
