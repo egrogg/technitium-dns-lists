@@ -14,8 +14,8 @@ as an example.
 
 | Device | Role | Example IP Address |
 |--------|------|--------------------|
-| Proxmox VM | Primary Technitium DNS | 192.168.10.10 |
-| Raspberry Pi 4 | Secondary Technitium DNS | 192.168.10.11 |
+| Proxmox VM | Primary Technitium DNS | 192.168.xxx.xxx |
+| Raspberry Pi 4 | Secondary Technitium DNS | 192.168.xxx.xxx |
 | Network Gateway | Router / Firewall | 192.168.10.1 |
 
 > **Important:** The IP addresses shown throughout this guide
@@ -27,8 +27,8 @@ as an example.
 > For example, if your network uses `192.168.10.0/24`,
 > you might configure:
 >
-> - Primary DNS: `192.168.10.10`
-> - Secondary DNS: `192.168.10.11`
+> - Primary DNS: `192.168.xxx.xxx`
+> - Secondary DNS: `192.168.xxx.xxx`
 >
 > Ensure that both addresses are available and do not
 > conflict with other devices.
@@ -1252,13 +1252,13 @@ Click **Save**.
 From another computer, test the primary server:
 
 ```bash
-dig @192.168.10.10 example.com
+dig @192.168.xxx.xxx example.com
 ```
 
 Test the secondary server:
 
 ```bash
-dig @192.168.10.11 example.com
+dig @192.168.xxx.xxx example.com
 ```
 
 Replace these example addresses with your actual DNS server IPs.
@@ -2480,10 +2480,10 @@ Query each server **by its distinct address** from the same client:
 
 ```bash
 # Replace with the primary server's actual IP:
-dig @192.168.10.10 google.com A
+dig @192.168.xxx.xxx google.com A
 
 # Replace with the secondary server's actual IP:
-dig @192.168.10.11 google.com A
+dig @192.168.xxx.xxx google.com A
 ```
 
 On the failing server, verify the service, port 53, firewall, forwarders,
@@ -2540,6 +2540,92 @@ performed. **Redact credentials, sensitive hostnames, and private network
 information before sharing diagnostic output publicly.**
 
 ---
+## Troubleshooting — Identify Blocked DNS Queries
+
+When a legitimate domain fails to resolve, Technitium Advanced Blocking may be responsible.
+
+### Step 1 — Review Query Logs
+
+Navigate to **Logs → Query Logs**.
+
+Locate the affected domain and review:
+
+- Client IP address
+- Requested domain
+- Query type
+- Response code
+- Blocked status
+
+### Step 2 — Test DNS Resolution
+
+Run:
+
+```bash
+dig @192.168.10.10 example.com
+```
+
+Replace the example IP with the appropriate Technitium server address.
+
+A blocked response may include:
+
+```text
+EDE: 15 (Blocked): (source=advanced-blocking-app; group=everyone else; domain=example.com)
+```
+
+This identifies the blocking component and policy group, but does not necessarily identify the exact blocking list.
+
+### Step 3 — Check Advanced Blocking
+
+1. Navigate to **Apps → Advanced Blocking → Config**.
+2. Locate the affected policy group.
+3. Review the `blocked` array.
+4. Review the configured `blockListUrls`.
+5. Determine which rule or list matches the domain.
+
+For example, the following configuration explicitly blocks `example.com`:
+
+```json
+"allowed": [],
+"blocked": [
+  "example.com"
+]
+```
+
+If this entry was added unintentionally, remove it:
+
+```json
+"allowed": [],
+"blocked": []
+```
+
+**Important:** Preserve all other legitimate entries in the `blocked` array. Do not replace the entire array unless it contains no other domains.
+
+Save the configuration.
+
+### Step 4 — Verify Resolution
+
+Run the DNS query again:
+
+```bash
+dig @192.168.10.10 example.com
+```
+
+Expected result, provided no other blocking rules apply:
+
+```text
+status: NOERROR
+```
+
+The response should contain an appropriate DNS answer.
+
+If the domain remains blocked, investigate the configured external blocklists and any additional Advanced Blocking rules.
+
+### Troubleshooting Summary
+
+This procedure was used to identify a manually configured block for `example.com` in the Advanced Blocking group named `everyone else`.
+
+The investigation demonstrated how SQLite Query Logs, DNS Extended Errors (EDE), and Advanced Blocking configuration can be used together to identify the cause of blocked DNS requests.
+
 
 ## Troubleshooting Summary
 
