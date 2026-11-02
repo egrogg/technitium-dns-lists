@@ -207,7 +207,7 @@ If the results are reversed, systemd-timesyncd is running instead.
 
 Important: You only need one active time synchronization service.
 
-### Step 3 - Check the synchronization service
+### Step 2 - Check the synchronization service
 If using Chrony: 
 ```bash
 chronyc tracking
@@ -246,7 +246,7 @@ Expected should be "yes" as above
 
 If still says "no" then continue to step 4
 
-### Step 4 - Chech DNS and firewall connectivity
+### Step 4 - Check DNS and firewall connectivity
 Note: If the firewall was turned on and settings were added, turn off the firewall and check again that may fix it.  If that does, then check the rules on the firewall.
 
 If restarting the service doesn't resolve the problem, check whether the server can resolve NTP hostnames.
@@ -1149,18 +1149,18 @@ Configuration summary:
 **Status: Configuration documented.**
 
 ---
-## Configure Built-in DNS Server Logging
+## Step 5 - Configure Built-in DNS Server Logging
 
 Technitium DNS Server includes built-in logging for server errors, warnings, and administrative events. This logging does not require installing an additional application.
 
-### Step 1 — Access Logging Settings
+### Step 5.1 — Access Logging Settings
 
 1. Log in to the Technitium DNS Server web interface.
 2. Navigate to **Settings**.
 3. Select the **Logging** section.
 4. Review the existing logging configuration.
 
-### Step 2 — Configure Logging
+### Step 5.2 — Configure Logging
 
 Use the following settings:
 
@@ -1178,7 +1178,7 @@ Use the following settings:
 
 Click **Save Settings**.
 
-### Step 3 — Verify Built-in Logging
+### Step 5.3 — Verify Built-in Logging
 
 On Ubuntu Server, run:
 
@@ -1198,11 +1198,11 @@ Repeat these steps on both the primary Proxmox VM and secondary Raspberry Pi 4.
 
 ---
 
-## Install and Configure Query Logs (SQLite)
+## Step 6 - Install and Configure Query Logs (SQLite)
 
 The Query Logs (SQLite) app provides persistent DNS query history, allowing administrators to investigate DNS requests, client activity, and blocked domains.
 
-### Step 1 — Install the App
+### Step 6.1 — Install the App
 
 1. Log in to the Technitium DNS Server web interface.
 2. Navigate to **Apps**.
@@ -1211,7 +1211,7 @@ The Query Logs (SQLite) app provides persistent DNS query history, allowing admi
 5. Click **Install**.
 6. Wait for installation to complete.
 
-### Step 2 — Configure SQLite Logging
+### Step 6.2 — Configure SQLite Logging
 
 Open **Apps → Query Logs (Sqlite) → Config**.
 
@@ -1247,18 +1247,18 @@ Click **Save**.
 
 **Important:** The database may reach the record limit before 30 days have elapsed. Actual retention depends on DNS query volume.
 
-### Step 3 — Verify Query Logging
+### Step 6.3 — Verify Query Logging
 
 From another computer, test the primary server:
 
 ```bash
-dig @192.168.xxx.xxx example.com
+dig @192.168.xxx.xx example.com
 ```
 
 Test the secondary server:
 
 ```bash
-dig @192.168.xxx.xxx example.com
+dig @192.168.xxx.xx example.com
 ```
 
 Replace these example addresses with your actual DNS server IPs.
@@ -1271,7 +1271,7 @@ In the Technitium web console:
 4. Verify that the query was recorded.
 5. Confirm the client IP address, timestamp, response code, and query type.
 
-### Step 4 — Verify Both DNS Servers
+### Step 6.4 — Verify Both DNS Servers
 
 Repeat the installation and configuration on both Technitium DNS servers.
 
@@ -1281,8 +1281,11 @@ Query log databases are maintained locally on each server. Do not assume that qu
 
 ### Expected Result
 
-Both Technitium DNS servers have built-in logging enabled and Query Logs (SQLite) configured to retain searchable DNS query history.
-## Step 5 - Verify DNS Resolution
+After verification, both Technitium DNS servers should have built-in logging enabled and Query Logs (SQLite) configured to retain searchable DNS query history.
+
+---
+
+## Step 7 - Verify DNS Resolution
 
 After configuring the DNS forwarders, verify that both
 Technitium DNS servers can successfully resolve domain names.
@@ -1392,9 +1395,9 @@ to DNS queries over UDP and TCP.
 ---
 
 
-## Step 6 - Verify DNS Server Availability
+## Step 8 - Verify DNS Server Availability
 
-After verifying DNS resolution in Step 5, confirm that both Technitium DNS servers are reachable over the network.
+After verifying DNS resolution in Step 7, confirm that both Technitium DNS servers are reachable over the network.
 
 Perform these tests from another computer on your network.
 
@@ -1451,7 +1454,7 @@ At the bottom of the output, look for:
 >
 > A failed ping does not necessarily mean the Technitium DNS server is unavailable.
 >
-> The DNS resolution tests performed in Step 5 provide a more meaningful verification of DNS functionality.
+> The DNS resolution tests performed in Step 7 provide a more meaningful verification of DNS functionality.
 
 ### Verification Summary
 
@@ -1464,7 +1467,7 @@ At the bottom of the output, look for:
 **Status: Network connectivity verified after successful testing.**
 
 ---
-## Step 7 - Verify Technitium Services
+## Step 9 - Verify Technitium Services
 
 After confirming network connectivity, verify that Technitium DNS Server is running and configured to start automatically when Ubuntu Server boots.
 
@@ -1473,7 +1476,7 @@ Perform the following steps on **both Technitium DNS servers**:
 - Primary DNS — Proxmox Ubuntu Server VM
 - Secondary DNS — Raspberry Pi 4 running Ubuntu Server
 
-### Step 7.1 - Verify Technitium Service Status
+### Step 9.1 - Verify Technitium Service Status
 
 Connect to the Ubuntu Server using SSH.
 
@@ -1493,7 +1496,7 @@ Active: active (running)
 
 This confirms that the Technitium DNS service is currently running.
 
-### Step 7.2 - Verify Automatic Startup
+### Step 9.2 - Verify Automatic Startup
 
 To verify that Technitium starts automatically when Ubuntu Server boots, run:
 
@@ -1509,7 +1512,7 @@ enabled
 
 This confirms that the service is configured to start automatically during the normal system boot process.
 
-### Step 7.3 - Enable Automatic Startup (If Necessary)
+### Step 9.3 - Enable Automatic Startup (If Necessary)
 
 If the service is not enabled, run:
 
@@ -1531,7 +1534,7 @@ enabled
 
 > **Note:** Enabling a service does not necessarily start it immediately. It configures the service to start during the normal boot process.
 
-### Step 7.4 - Start Technitium (If Not Running)
+### Step 9.4 - Start Technitium (If Not Running)
 
 If the service is not running, start it using:
 
@@ -1551,7 +1554,7 @@ Expected:
 Active: active (running)
 ```
 
-### Step 7.5 - Troubleshoot Service Issues
+### Step 9.5 - Troubleshoot Service Issues
 
 If Technitium fails to start, review the service logs:
 
@@ -1588,7 +1591,7 @@ If both Technitium DNS services are running and enabled, the service verificatio
 **Status: Technitium services verified after successful testing.**
 
 ---
-## Step 8 - Verify Configuration After Reboot
+## Step 10 - Verify Configuration After Reboot
 
 After completing the initial configuration, verify that both Technitium DNS servers start automatically and function correctly after a reboot.
 
@@ -1604,7 +1607,7 @@ This test confirms that:
 
 ---
 
-### Step 8.1 - Reboot the Primary DNS Server
+### Step 10.1 - Reboot the Primary DNS Server
 
 Connect to the primary Technitium DNS server running on the Proxmox Ubuntu Server VM.
 
@@ -1664,7 +1667,7 @@ The response should also contain an ANSWER SECTION with one or more IPv4 address
 
 ---
 
-### Step 8.2 - Reboot the Secondary DNS Server
+### Step 10.2 - Reboot the Secondary DNS Server
 
 After verifying that the primary server is functioning correctly, connect to the Raspberry Pi 4 running Ubuntu Server.
 
@@ -1722,7 +1725,7 @@ The response should also contain an ANSWER SECTION with one or more IPv4 address
 
 ---
 
-### Step 8.3 - Verify Raspberry Pi Time Synchronization
+### Step 10.3 - Verify Raspberry Pi Time Synchronization
 
 The Raspberry Pi 4 does not have a built-in battery-backed real-time clock (RTC).
 
@@ -1785,7 +1788,7 @@ Look for a selected time source indicated by:
 
 ---
 
-### Step 8.4 - Verify DNSSEC Behavior After Reboot
+### Step 10.4 - Verify DNSSEC Behavior After Reboot
 
 Because an incorrect system clock previously caused DNSSEC validation errors on the Raspberry Pi, perform an additional DNSSEC test.
 
@@ -1837,7 +1840,7 @@ Together, these tests help confirm that normal DNS resolution works and invalid 
 
 ---
 
-### Step 8.5 - Final Verification
+### Step 10.5 - Final Verification
 
 After both servers have been rebooted and tested, verify the following:
 
@@ -1849,6 +1852,9 @@ After both servers have been rebooted and tested, verify the following:
 | DNS resolution successful | PASS / FAIL | PASS / FAIL |
 | DNSSEC-invalid domain rejected | Not tested | PASS / FAIL |
 | Chrony synchronized | Not tested | PASS / FAIL |
+| Built-in DNS logging | PASS / FAIL | PASS / FAIL |
+| SQLite query logging | PASS / FAIL | PASS / FAIL |
+| Test query appears in SQLite logs | PASS / FAIL | PASS / FAIL |
 
 > **Note:** Replace PASS / FAIL with the actual results after completing the tests. A test that has not been performed should be marked NOT TESTED.
 
@@ -1862,6 +1868,9 @@ After successfully completing all verification steps:
 - Administrator credentials have been configured.
 - DNS listening settings have been reviewed.
 - DNS forwarding has been configured.
+- Built-in DNS server logging has been configured.
+- Query Logs (SQLite) has been installed and configured.
+- DNS query logging has been verified on both servers (if tested).
 - UDP and TCP DNS resolution have been tested.
 - Both Technitium services are running.
 - Automatic service startup has been verified.
@@ -2253,7 +2262,25 @@ Press `Ctrl+C` to stop the packet capture.
 
 ---
 
-## Step 6 - Final DNS Verification Checklist
+## Step 6 - Verify DNS Query Logging
+
+After configuring SQLite query logging in Part 3, generate a DNS query against each server from a client computer:
+
+```bash
+dig @192.168.xxx.xx example.com A  # Primary server IP
+```
+
+```bash
+dig @192.168.xxx.xx example.com A  # Secondary server IP
+```
+
+Use the correct, different IP address for each server. In each server's Technitium web interface, open **Logs → Query Logs**, select the SQLite source, and confirm that the request appears with the expected client IP, domain, timestamp, and response code. If `example.com` is intentionally blocked by policy, its response may be `NXDOMAIN`; the purpose of this test is to verify that the query is recorded.
+
+**Note:** The primary and secondary query-log databases are local to each server; check each server separately. Record **NOT TESTED** for any server you have not yet verified.
+
+---
+
+## Step 7 - Final DNS Verification Checklist
 
 After completing the tests, record the results.
 
@@ -2270,6 +2297,8 @@ After completing the tests, record the results.
 > **Important:** Replace PASS / FAIL with the actual
 > test results. Use NOT TESTED for any verification
 > that has not been performed.
+
+**Logging verification:** Record whether each server's SQLite query log contains the test query from Step 6. Do not mark untested servers as PASS.
 
 ### Verification Notes
 
@@ -2561,7 +2590,7 @@ Locate the affected domain and review:
 Run:
 
 ```bash
-dig @192.168.10.10 example.com
+dig @192.168.xxx.xx example.com
 ```
 
 Replace the example IP with the appropriate Technitium server address.
@@ -2607,7 +2636,7 @@ Save the configuration.
 Run the DNS query again:
 
 ```bash
-dig @192.168.10.10 example.com
+dig @192.168.xxx.xx example.com
 ```
 
 Expected result, provided no other blocking rules apply:
@@ -2620,7 +2649,7 @@ The response should contain an appropriate DNS answer.
 
 If the domain remains blocked, investigate the configured external blocklists and any additional Advanced Blocking rules.
 
-### Troubleshooting Summary
+### Blocked-Domain Investigation Result
 
 This procedure was used to identify a manually configured block for `example.com` in the Advanced Blocking group named `everyone else`.
 
