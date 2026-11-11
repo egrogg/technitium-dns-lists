@@ -14,3 +14,6 @@ twingate.com
 # other Gaming
 discord.com
 ampltd2.medal.tv
+
+# Ubuntu
+ubuntu.com
