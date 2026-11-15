@@ -17,3 +17,6 @@ ampltd2.medal.tv
 
 # Ubuntu
 ubuntu.com
+
+# Malware Scanning
+avast.com
