@@ -1,57 +1,56 @@
 # How to Install Technitium DNS Server
 
-This guide provides step-by-step instructions for installing
-Technitium DNS Server on two different platforms:
+This guide provides step-by-step instructions for installing Technitium DNS Server on two platforms:
 
-1. Proxmox VE using an Ubuntu Server virtual machine.
-2. Raspberry Pi 4 using Ubuntu Server.
-3. Configure DHCP reservations in your network gateway.
+1. Proxmox VE using an Ubuntu Server virtual machine (primary DNS server).
+2. Raspberry Pi 4 using Ubuntu Server (secondary DNS server).
+3. Configuring DHCP reservations and DNS hand-out on pfSense (see [pfSense-DHCP-and-DNS.md](pfSense-DHCP-and-DNS.md)).
+
+### Related Guides
+
+| Guide | Purpose |
+| --- | --- |
+| [pfSense-DHCP-and-DNS.md](pfSense-DHCP-and-DNS.md) | DHCP reservations, handing out both DNS servers, pfSense's own resolver |
+| [Technitium-DNS-Cluster-Setup.md](Technitium-DNS-Cluster-Setup.md) | Joining the two servers into a cluster |
+| [AdvancedBlocking.md](AdvancedBlocking.md) | DNS filtering with the Advanced Blocking app |
+| [firewall-rules.md](firewall-rules.md) | pfSense rules that restrict DNS bypass |
+| [BackupAndRecovery.md](BackupAndRecovery.md) | Backups and recovery |
+| [Maintenance-and-Hardening.md](Maintenance-and-Hardening.md) | Updates, host firewall (UFW), HTTPS admin, SSH, routine checks |
+
+## Document Conventions
+
+- **Placeholders:** IP addresses appear as `192.168.XXX.XX`. Replace them with your own. Where a command is run against both servers, a `# Primary` or `# Secondary` comment shows which address to use. **Never run the primary and secondary tests against the same address.**
+- **Test results:** record PASS, FAIL, or NOT TESTED. A test that has not been run is never PASS.
+- **Versions:** use the same Ubuntu Server LTS release on both servers and record what you used.
+
+| Item | Version used |
+| --- | --- |
+| Ubuntu Server LTS (both servers) | _(record the release)_ |
+| Technitium DNS Server | _(record the version)_ |
 
 ## Network Configuration and IP Addresses
 
-This installation guide uses the following network configuration
-as an example.
+This guide uses the following network configuration as an example.
 
 | Device | Role | Example IP Address |
-|--------|------|--------------------|
-| Proxmox VM | Primary Technitium DNS | 192.168.xxx.xxx |
-| Raspberry Pi 4 | Secondary Technitium DNS | 192.168.xxx.xxx |
-| Network Gateway | Router / Firewall | 192.168.10.1 |
+| --- | --- | --- |
+| Proxmox VM | Primary Technitium DNS | 192.168.XXX.XX |
+| Raspberry Pi 4 | Secondary Technitium DNS | 192.168.XXX.XX |
+| Network Gateway | pfSense router / firewall / DHCP | 192.168.XXX.XX |
 
-> **Important:** The IP addresses shown throughout this guide
-> are illustrative addresses, not the actual IP addresses of my home network.
+> **Important:** The IP addresses shown throughout this guide are illustrative, not the addresses of a real home network.
 >
-> Replace these addresses with the IP addresses assigned
-> to your own network.
+> Replace them with addresses from your own network. For example, if your network uses `10.0.0.0/24`, you might use `10.0.0.10` for the primary and `10.0.0.11` for the secondary.
 >
-> For example, if your network uses `10.0/24`,
-> you might configure:
->
-> - Primary DNS: `192.168.xxx.xxx`
-> - Secondary DNS: `192.168.xxx.xxx`
->
-> Ensure that both addresses are available and do not
-> conflict with other devices.
-> Some command examples use `192.168.xxx.xx` as a placeholder.
-> Replace it with the appropriate primary or secondary server IP.
-> **Do not run both primary and secondary tests against the same address.**
+> Ensure that both addresses are available and do not conflict with other devices.
 
 ### DHCP Reservations
 
-For this installation, DHCP reservations are configured
-on the network gateway to ensure each DNS server
-receives a consistent IP address.
+DHCP reservations are configured on the network gateway (pfSense) so each DNS server always receives the same IP address. A DHCP reservation associates a device's MAC address with a specific IP address, so the server keeps using DHCP but always receives the same address.
 
-A DHCP reservation associates a device's MAC address
-with a specific IP address.
+> **Note:** A DHCP reservation is different from manually configuring a static IP address in Ubuntu. Either method gives a consistent address, but the configuration is different.
 
-This allows the server to continue using DHCP while
-receiving the same IP address.
-
-> **Note:** A DHCP reservation is different from
-> manually configuring a static IP address in Ubuntu.
-> Either method can provide a consistent address,
-> but the configuration process is different.
+Step-by-step pfSense instructions, including handing out both DNS servers to clients, are in [pfSense-DHCP-and-DNS.md](pfSense-DHCP-and-DNS.md).
 
 ---
 
@@ -59,6 +58,7 @@ receiving the same IP address.
 
 - [Part 1 - Proxmox VM Installation](#part-1---proxmox-vm-installation)
 - [Part 2 - Raspberry Pi 4 Installation](#part-2---raspberry-pi-4-installation)
+- [Part 2A - Raspberry Pi 4 Time Synchronization (Optional)](#part-2a---raspberry-pi-4-time-synchronization-optional)
 - [Part 3 - Initial Technitium Configuration](#part-3---initial-technitium-configuration)
 - [Part 4 - Verify DNS Resolution](#part-4---verify-dns-resolution)
 - [Part 5 - Troubleshooting](#part-5---troubleshooting)
@@ -69,10 +69,9 @@ receiving the same IP address.
 
 ## Step 1 - Download Ubuntu Server
 
-Download the latest supported Ubuntu Server LTS ISO.
+Download the Ubuntu Server LTS ISO. Use the same release on the Raspberry Pi so both servers behave the same way (see Document Conventions).
 
-**Download:**
-https://ubuntu.com/download/server
+**Download:** [https://ubuntu.com/download/server](https://ubuntu.com/download/server)
 
 ## Step 2 - Upload Ubuntu Server ISO to Proxmox
 
@@ -94,7 +93,7 @@ https://ubuntu.com/download/server
 ### Recommended VM Configuration
 
 | Setting | Configuration |
-|---------|---------------|
+| --- | --- |
 | VM Name | technitium-dns |
 | Operating System | Ubuntu Server LTS |
 | CPU | 2 Cores |
@@ -102,9 +101,10 @@ https://ubuntu.com/download/server
 | Disk | 32 GB |
 | Network Model | VirtIO |
 | Network Bridge | vmbr0 |
+| Start at boot | Enabled (VM > Options, after creation) |
+| QEMU Guest Agent | Enabled after installing `qemu-guest-agent` (see [BackupAndRecovery.md](BackupAndRecovery.md)) |
 
-> **Note:** These are suggested starting resources.
-> Adjust them based on your environment.
+> **Note:** These are suggested starting resources. Adjust them for your environment.
 
 ## Step 4 - Install Ubuntu Server
 
@@ -123,33 +123,32 @@ Log in to Ubuntu Server.
 
 Update the package repositories:
 
-```bash
+```
 sudo apt update
 ```
 
 Upgrade installed packages:
 
-```bash
+```
 sudo apt upgrade -y
 ```
 
-Identify the current IP address and MAC address. If using a DHCP reservation,
-create it on the gateway or DHCP server. A DHCP reservation is not the same
-as setting a static IP inside Ubuntu.  
+Identify the current IP address and MAC address. If using a DHCP reservation, create it on pfSense ([pfSense-DHCP-and-DNS.md](pfSense-DHCP-and-DNS.md)). A DHCP reservation is not the same as setting a static IP inside Ubuntu.
 
-```bash
+```
 ip a
 ```
-To identify the network interface and MAC address more clearly, you can also use:  
-```bash
+
+To identify the network interface and MAC address more clearly:
+
+```
 ip -br addr
 ip link show
 ```
-These commands help identify the network interface, assigned IP address, and MAC address.  
 
-After creating the reservation, renew the DHCP lease or reboot to request the reserved IP:  
+After creating the reservation, renew the DHCP lease or reboot to request the reserved IP:
 
-```bash
+```
 sudo reboot
 ```
 
@@ -157,141 +156,161 @@ sudo reboot
 
 Run the official Technitium installation script:
 
-```bash
+```
 curl -sSL https://download.technitium.com/dns/install.sh | sudo bash
 ```
 
 Follow the installation prompts.
 
+> **Tip:** Piping a script straight into `sudo bash` runs it without reviewing it. To read the script first, download it, inspect it, then run it:
+>
+> ```
+> curl -sSLO https://download.technitium.com/dns/install.sh
+> less install.sh
+> sudo bash install.sh
+> ```
+
 ## Step 7 - Verify Technitium Service
 
 Check whether Technitium DNS is running:
 
-```bash
+```
 sudo systemctl status dns.service
 ```
 
 The expected service status is:
 
-```text
+```
 Active: active (running)
 ```
 
-Note: After a fresh installation or reboot, Ubuntu Server may initially display System clock synchronized: no. This is normal while the NTP service establishes synchronization. Wait a few minutes and run timedatectl again.
+> **Note:** After a fresh installation or reboot, Ubuntu Server may initially show `System clock synchronized: no`. This is normal while the NTP service establishes synchronization. Wait a few minutes and run `timedatectl` again.
 
-```bash
+```
 timedatectl
 ```
----
 
-Before proceeding with Technitium DNS configuration, verify that:
-- System clock synchronized: yes
-- NTP service: active
-Accurate time synchronization is important for DNSSEC validation and Technitium DNS cluster communication. If after a reboot and it is checked, the above may say "no", but Ubuntu Server may take a minute to sync.  Check again and it should say "yes".
+Before proceeding with Technitium configuration, verify that:
 
-If still says no, to fix complete the below:
-### Step 1 - Identify the time synchronization service
-Ubuntu Server may use either systemd-timesyncd or chrony.
-```bash
+- `System clock synchronized: yes`
+- `NTP service: active`
+
+Accurate time is important for DNSSEC validation and Technitium cluster communication. If either still reports `no` after a few minutes, work through Steps 7.1 to 7.4 below.
+
+### Step 7.1 - Identify the time synchronization service
+
+Ubuntu Server may use either `systemd-timesyncd` or `chrony`.
+
+```
 systemctl is-active chrony
 systemctl is-active systemd-timesyncd
 ```
+
 Example:
-```bash
+
+```
 active
 inactive
 ```
-This indicates that Chrony is running.
 
-If the results are reversed, systemd-timesyncd is running instead.
+This indicates that Chrony is running. If the results are reversed, `systemd-timesyncd` is running instead.
 
-Important: You only need one active time synchronization service.
+> **Important:** You only need one active time synchronization service.
 
-### Step 2 - Check the synchronization service
-If using Chrony: 
-```bash
+### Step 7.2 - Check the synchronization service
+
+If using Chrony:
+
+```
 chronyc tracking
 ```
+
 Check the configured NTP sources:
-```bash
+
+```
 chronyc sources -v
 ```
-Look for a source marked ^*, indicating the currently selected synchronization source.
 
-If using systemd-timesyncd:
-```bash
+Look for a source marked `^*`, which is the currently selected synchronization source.
+
+If using `systemd-timesyncd`:
+
+```
 timedatectl timesync-status
 ```
+
 Check the service:
-```bash
+
+```
 systemctl status systemd-timesyncd
 ```
-### Step 3 — Restart the time synchronization service
-If synchronization isn't working, restart the active service.
+
+### Step 7.3 - Restart the time synchronization service
+
+If synchronization is not working, restart the active service.
 
 For Chrony:
-```bash
+
+```
 sudo systemctl restart chrony
 ```
-For systemd-timesyncd:
 
-```bash
+For `systemd-timesyncd`:
+
+```
 sudo systemctl restart systemd-timesyncd
 ```
+
 Wait a minute or two, then check:
-```bash
+
+```
 timedatectl
 ```
-Expected should be "yes" as above
 
-If still says "no" then continue to step 4
+The expected result is `System clock synchronized: yes`. If it still says `no`, continue to Step 7.4.
 
-### Step 4 - Check DNS and firewall connectivity
-Note: If the firewall was turned on and settings were added, turn off the firewall and check again that may fix it.  If that does, then check the rules on the firewall.
+### Step 7.4 - Check DNS and firewall connectivity
 
-If restarting the service doesn't resolve the problem, check whether the server can resolve NTP hostnames.
+> **Note:** If a host firewall was turned on and rules were added, temporarily turning it off and checking again may fix the problem. If it does, review the firewall rules.
 
-```bash
+If restarting the service doesn't resolve the problem, check whether the server can resolve NTP hostnames:
+
+```
 resolvectl query ntp.ubuntu.com
 ```
-How to check whether the firewall allows outbound NTP traffic
-```bash
+
+Check whether the host firewall allows outbound NTP traffic:
+
+```
 sudo ufw status verbose
 ```
+
 | Protocol | Port | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | UDP | 123 | NTP time synchronization |
 | TCP | 4460 | Network Time Security (NTS) key exchange |
 
-Ubuntu 26.04 uses Chrony by default, with NTS-enabled time sources. Both ports may be needed for the default configuration.
-Inspect the firewall rules:
-```bash
-sudo ufw status verbose
-```
-If you have any firewall rules on the gateway (i.e: Unifi, Netgate (pfsense), opensense) check there as it may be blocked there trying to reach out to sync time.
+Ubuntu 26.04 uses Chrony by default, with NTS-enabled time sources, so both ports may be needed. Older releases that default to `systemd-timesyncd` need only UDP 123.
 
-Check a final time if it is working once all firewall rules have been either disabled or removed.
+Also check the gateway: in pfSense, review **Status > System Logs > Firewall** to see whether outbound NTP (UDP 123) or NTS (TCP 4460) from the DNS server is being blocked. See [firewall-rules.md](firewall-rules.md) for the rules to allow if the DNS servers sit on a restricted VLAN.
 
-See Troubleshooting in Chapter 5 for links for help if this still doesn't work on Ubuntu.
-
+Check once more after any firewall rule has been changed. If it still does not work, see Part 5 - Troubleshooting for links to Ubuntu help.
 
 ---
+
 ## Step 8 - Access the Technitium Web Interface
 
-Open a web browser and navigate to the Primary DNS server IP:
+Open a web browser and go to the primary DNS server:
 
-```text
-http://192.168.xxx.xx:5380
+```
+http://192.168.XXX.XX:5380
 ```
 
-Replace the IP address with your Technitium server's IP address.
+Replace the IP address with your Technitium server's address.
 
 Complete the initial setup wizard.
 
 ---
-
-
-
 
 # Part 2 - Raspberry Pi 4 Installation
 
@@ -299,7 +318,7 @@ Complete the initial setup wizard.
 
 Download Raspberry Pi Imager:
 
-https://www.raspberrypi.com/software/
+[https://www.raspberrypi.com/software/](https://www.raspberrypi.com/software/)
 
 ## Step 2 - Prepare the Raspberry Pi
 
@@ -309,7 +328,7 @@ https://www.raspberrypi.com/software/
 4. Under **Operating System**, select:
    - **Other general-purpose OS**
    - **Ubuntu**
-   - **Ubuntu Server 24.04 LTS (64-bit)**
+   - **Ubuntu Server LTS (64-bit)**, the **same release** you used on the Proxmox VM (see Document Conventions)
 5. Under **Storage**, select the microSD card.
 6. Click **Next**.
 7. If prompted, select **Edit Settings** or **OS Customisation** to configure:
@@ -325,6 +344,7 @@ https://www.raspberrypi.com/software/
 11. Wait for the writing and verification process to complete.
 12. Safely remove the microSD card.
 
+> **Storage note:** SQLite query logging (Part 3, Step 6) writes continuously, which wears a microSD card. See [Maintenance-and-Hardening.md](Maintenance-and-Hardening.md) for options such as booting from a USB SSD.
 
 ## Step 3 - Boot the Raspberry Pi
 
@@ -335,25 +355,25 @@ https://www.raspberrypi.com/software/
 
 ## Step 4 - Connect Using SSH
 
-From another Linux computer: (this is for the Secondary Technitium DNS server)
+From another Linux computer (this is the secondary Technitium DNS server):
 
-```bash
-ssh username@192.168.xxx.xx
+```
+ssh username@192.168.XXX.XX
 ```
 
-Replace the username and IP address with your configuration.
+Replace the username and IP address with your configuration. Create a DHCP reservation for the Pi as well ([pfSense-DHCP-and-DNS.md](pfSense-DHCP-and-DNS.md)).
 
 ## Step 5 - Update Ubuntu Server
 
 Update the package repositories:
 
-```bash
+```
 sudo apt update
 ```
 
 Upgrade installed packages:
 
-```bash
+```
 sudo apt upgrade -y
 ```
 
@@ -361,79 +381,64 @@ sudo apt upgrade -y
 
 Run:
 
-```bash
+```
 curl -sSL https://download.technitium.com/dns/install.sh | sudo bash
 ```
 
+To review the script before running it, see the tip in Part 1, Step 6.
+
 ## Step 7 - Verify Technitium Service
 
-```bash
+```
 sudo systemctl status dns.service
 ```
 
 Expected result:
 
-```text
+```
 Active: active (running)
 ```
 
 ## Step 8 - Access the Web Interface
 
-Open: (This is for the Secondary Technitium DNS Server)
+Open (this is the secondary Technitium DNS server):
 
-```text
-http://192.168.xxx.xx:5380
+```
+http://192.168.XXX.XX:5380
 ```
 
 Complete the initial setup wizard.
 
 ---
-## Raspberry Pi 4 — Ubuntu Server Time Synchronization
 
-### Overview
+# Part 2A - Raspberry Pi 4 Time Synchronization (Optional)
 
-> **Optional troubleshooting procedure:** This section records a specific
-> time synchronization problem encountered during the original installation.
-> First check whether the default Ubuntu time synchronization works after
-> reboot. Apply the workaround only if needed, after considering the security
-> implications of unauthenticated NTP bootstrap sources and the `trust` directive.
+## Overview
 
-The Raspberry Pi 4 does not include a built-in battery-backed
-real-time clock (RTC).
+> **Optional troubleshooting procedure:** This section records a specific time synchronization problem encountered during the original installation. First check whether the default Ubuntu time synchronization works after a reboot. Apply the workaround only if needed, after considering the security implications of unauthenticated NTP bootstrap sources and the `trust` directive.
 
-When the Raspberry Pi loses power or reboots, Ubuntu Server
-may start with an incorrect system date and time.
-
-This can cause problems with Technitium DNS Server,
-particularly when DNSSEC validation is enabled.
+The Raspberry Pi 4 does not include a battery-backed real-time clock (RTC). When it loses power or reboots, Ubuntu Server may start with an incorrect system date and time. This can cause problems with Technitium DNS Server, particularly when DNSSEC validation is enabled.
 
 ### Environment
 
 | Component | Configuration |
-|-----------|---------------|
+| --- | --- |
 | Device | Raspberry Pi 4 |
 | Operating System | Ubuntu Server |
 | DNS Server | Technitium DNS |
 | Server Role | Secondary DNS |
-| IP Address | 192.168.xxx.xx |
+| IP Address | 192.168.XXX.XX |
 | Time Synchronization | Chrony |
 
 ---
 
-### Problem
+## Problem
 
-After rebooting, the Raspberry Pi started with an incorrect
-system clock.
-
-Chrony was configured to use authenticated Network Time
-Security (NTS) servers.
-
-Because the system clock was incorrect, TLS certificate
-validation failed.
+After rebooting, the Raspberry Pi started with an incorrect system clock. Chrony was configured to use authenticated Network Time Security (NTS) servers. Because the system clock was incorrect, TLS certificate validation failed.
 
 The resulting sequence was:
 
-```text
+```
 Raspberry Pi reboots
         |
         v
@@ -457,158 +462,112 @@ Technitium returns SERVFAIL
 
 Technitium DNS reported:
 
-```text
+```
 Signature Not Yet Valid
 ```
 
 ---
 
-### Solution — Configure Chrony Bootstrap Sources
+## Solution - Configure Chrony Bootstrap Sources
 
-The following configuration was used to resolve the
-boot-time synchronization issue.
+The following configuration was used to resolve the boot-time synchronization issue.
 
-> **Security Note:** The bootstrap sources below use
-> unauthenticated NTP. The `trust` directive explicitly
-> trusts these sources, so their integrity is important.
-> This configuration restores time synchronization but
-> does not provide the same authentication guarantees
-> as NTS. Use only trusted time sources. Noted below
-> are the two that I used to get it working.
+> **Security Note:** The bootstrap sources below use unauthenticated NTP. The `trust` directive explicitly trusts these sources, so their integrity is important. This configuration restores time synchronization but does not provide the same authentication guarantees as NTS. Use only trusted time sources. The two noted below are the ones used to get it working.
 
-### Step 1 — Configure Bootstrap NTP Sources
+### Step 2A.1 - Configure Bootstrap NTP Sources
 
 Create the Chrony bootstrap source file:
 
-```bash
+```
 sudo nano /etc/chrony/sources.d/bootstrap-ip.sources
 ```
 
 Add:
 
-```text
+```
 server 91.189.91.111 iburst trust
 server 185.125.190.121 iburst trust
 ```
 
-Save the file.
+Save the file, then verify it:
 
-Verify the configuration:
-
-```bash
+```
 cat /etc/chrony/sources.d/bootstrap-ip.sources
 ```
 
-> **Note:** These are the IP addresses used during the
-> original repair. Verify that they remain valid before
-> deploying this configuration on another system.
+> **Note:** These are the IP addresses used during the original repair. Verify that they remain valid before deploying this configuration on another system.
 
----
-
-### Step 2 — Modify Chrony Authentication Selection
+### Step 2A.2 - Modify Chrony Authentication Selection
 
 Open the Chrony configuration:
 
-```bash
+```
 sudo nano /etc/chrony/chrony.conf
 ```
 
 Add the following directive:
 
-```text
+```
 authselectmode ignore
 ```
 
 Verify that the configuration also contains:
 
-```text
+```
 makestep 1 3
 ```
 
 The relevant settings should look like:
 
-```text
+```
 authselectmode ignore
 makestep 1 3
 ```
 
 #### Explanation
 
-**authselectmode ignore**
+**authselectmode ignore** prevents authentication status from automatically controlling Chrony's source-selection process. This permits the configured bootstrap NTP sources to participate in time synchronization.
 
-Prevents authentication status from automatically
-controlling Chrony's source-selection process.
+**makestep 1 3** allows Chrony to step the system clock when the offset exceeds one second during the first three clock updates.
 
-This permits the configured bootstrap NTP sources
-to participate in time synchronization.
-
-**makestep 1 3**
-
-Allows Chrony to step the system clock when the
-time offset exceeds one second during the first
-three clock updates.
-
----
-
-### Step 3 — Restart Chrony
+### Step 2A.3 - Restart Chrony
 
 Restart the service:
 
-```bash
+```
 sudo systemctl restart chrony
 ```
 
-Wait approximately 20–30 seconds.
+Wait approximately 20 to 30 seconds, then check:
 
-Check the system time:
-
-```bash
+```
 date
-```
-
-Check synchronization status:
-
-```bash
 timedatectl
-```
-
-Check Chrony tracking:
-
-```bash
 chronyc tracking
-```
-
-Check available NTP sources:
-
-```bash
 chronyc sources -v
 ```
 
 A successful synchronization should eventually show:
 
-```text
+```
 System clock synchronized: yes
 NTP service: active
 Leap status: Normal
 ```
 
-> **Note:** Synchronization may take longer than
-> 30 seconds depending on network availability
-> and the initial clock offset.
+> **Note:** Synchronization may take longer than 30 seconds depending on network availability and the initial clock offset.
 
----
-
-### Step 4 — Verify After Reboot
+### Step 2A.4 - Verify After Reboot
 
 Reboot the Raspberry Pi:
 
-```bash
+```
 sudo reboot
 ```
 
 After reconnecting through SSH, run:
 
-```bash
+```
 date
 timedatectl
 chronyc tracking
@@ -621,17 +580,9 @@ Verify the following:
 3. The NTP service is active.
 4. The Chrony leap status is Normal.
 
-Expected results:
+Example of correct output:
 
-```text
-System clock synchronized: yes
-NTP service: active
-Leap status: Normal
 ```
-
-Correctly reporting will show the following:
-
-```bash
 Mon Oct 19 10:39:11 EDT 2026
                Local time: Mon 2026-10-19 10:39:12 EDT
            Universal time: Mon 2026-10-19 14:39:12 UTC
@@ -655,131 +606,96 @@ Update interval : 1038.5 seconds
 Leap status     : Normal
 ```
 
----
+### Step 2A.5 - Verify Technitium DNS
 
-### Step 5 — Verify Technitium DNS
+After confirming that the system clock is synchronized, test DNS resolution against the **secondary** server:
 
-After confirming that the system clock is synchronized,
-test DNS resolution: Use the Secondary Technitium DNS server IP:
-
-```bash
-dig @192.168.xxx.xx google.com
+```
+dig @192.168.XXX.XX google.com    # Secondary
 ```
 
 Verify that the response contains:
 
-```text
+```
 status: NOERROR
 ```
 
-Check that the DNSSEC time-validation error
-is no longer occurring.
-
-If DNS resolution still fails, review the
-Technitium DNS logs and Chrony synchronization status.
-
----
+Check that the DNSSEC time-validation error is no longer occurring. If resolution still fails, review the Technitium logs and Chrony synchronization status.
 
 ### Important Maintenance Considerations
 
-The bootstrap NTP sources use hard-coded IP addresses.
+The bootstrap NTP sources use hard-coded IP addresses. If these addresses change or become unavailable, the Raspberry Pi may fail to synchronize its clock. Periodically verify:
 
-If these addresses change or become unavailable,
-the Raspberry Pi may fail to synchronize its clock.
-
-Periodically verify:
-
-```bash
+```
 cat /etc/chrony/sources.d/bootstrap-ip.sources
-```
-Results should  show:
-
-```bash
-server 91.189.91.111 iburst trust
-server 185.125.190.121 iburst trust
-
-```
-You can also run
-
-```bash
 chronyc sources -v
-```
-This displays the NTP sources Chrony knows about and their selection status.
-
-You can also run:
-```bash
 chronyc tracking
 ```
-This verifies Chrony's current synchronization status.
 
----
+The file should still show:
+
+```
+server 91.189.91.111 iburst trust
+server 185.125.190.121 iburst trust
+```
 
 ### Result
 
-The original Raspberry Pi 4 configuration successfully
-recovered its system time after reboot.
-
-Chrony synchronized automatically, allowing Technitium
-DNSSEC validation to operate normally.
+The original Raspberry Pi 4 configuration recovered its system time after reboot. Chrony synchronized automatically, allowing Technitium DNSSEC validation to operate normally.
 
 **Status: Tested successfully on the original installation.**
 
+---
 
 # Part 3 - Initial Technitium Configuration
 
-After installing Technitium DNS Server on both the
-Proxmox Ubuntu Server VM and Raspberry Pi 4,
-the next step is to configure and verify each DNS server.
-
-For this installation:
+After installing Technitium DNS Server on both the Proxmox Ubuntu Server VM and the Raspberry Pi 4, configure and verify each server.
 
 | Server | Role | IP Address |
-|--------|------|------------|
-| Proxmox Ubuntu Server VM | Primary DNS | 192.168.xxx.xx |
-| Raspberry Pi 4 Ubuntu Server | Secondary DNS | 192.168.xxx.xx |
+| --- | --- | --- |
+| Proxmox Ubuntu Server VM | Primary DNS | 192.168.XXX.XX |
+| Raspberry Pi 4 Ubuntu Server | Secondary DNS | 192.168.XXX.XX |
 
-> **Important:** Replace these IP addresses with
-> the addresses assigned to your own DNS servers.
+> **Important:** Replace these IP addresses with the addresses assigned to your own DNS servers.
+
+> **Plan for clustering before you configure the secondary.** The next guide, [Technitium-DNS-Cluster-Setup.md](Technitium-DNS-Cluster-Setup.md), joins the secondary to the primary. Joining **overwrites the secondary's Allowed, Blocked, Apps, Settings, and Administration configuration** with the primary's, and afterward those sections synchronize from the primary.
+>
+> What this means for this part:
+>
+> - **Configure the primary completely** (Steps 3 to 6). Forwarders, logging, and apps set there are what the cluster will use.
+> - On the **secondary**, you only need Steps 1 to 3 (web access, administrator password, network settings) and Step 7 (service checks) before joining. Settings you enter on the secondary beyond that are replaced at join.
+> - **Query logs stay local to each node.** The SQLite query-log database is not synchronized between cluster members.
+> - **Back up the secondary before joining** ([BackupAndRecovery.md](BackupAndRecovery.md)).
+>
+> If you run the servers **without** clustering, repeat every step on both servers.
 
 ---
 
 ## Step 1 - Access the Technitium Web Interface
 
-From a computer connected to your local network,
-open a web browser.
+From a computer on your local network, open a web browser.
 
-### Primary DNS Server
+**Primary DNS server:**
 
-Navigate to:
-
-```text
-http://192.168.xxx.xx:5380
+```
+http://192.168.XXX.XX:5380      # Primary
 ```
 
-### Secondary DNS Server
+**Secondary DNS server:**
 
-Navigate to:
-
-```text
-http://192.168.xxx.xx:5380
+```
+http://192.168.XXX.XX:5380      # Secondary
 ```
 
-Technitium uses TCP port `5380` for its default
-HTTP administrative web interface.
+Technitium uses TCP port `5380` for its default HTTP administrative web interface. Complete the initial setup wizard if prompted.
 
-Complete the initial setup wizard if prompted.
-
-> **Security Note:** The HTTP administrative interface
-> is not encrypted. Use it only on a trusted management
-> network during initial setup. Configure HTTPS for
-> ongoing administration.
+> **Security Note:** The HTTP administrative interface is not encrypted. Use it only on a trusted management network during initial setup. Configure HTTPS for ongoing administration ([Maintenance-and-Hardening.md](Maintenance-and-Hardening.md), Section 3).
 
 ---
 
 ## Step 2 - Configure Administrator Credentials
 
-When accessing Technitium DNS Server for the first time,
-complete the initial administrator setup.
+When accessing Technitium DNS Server for the first time, complete the initial administrator setup.
 
 1. Open the Technitium web interface.
 2. Follow the initial setup prompts.
@@ -801,13 +717,11 @@ Repeat this process on both DNS servers.
 
 ## Step 3 - Verify DNS Server Network Settings
 
-After logging in to the Technitium DNS web interface,
-verify that the DNS server is listening on the
-correct network interfaces.
+After logging in, verify that the DNS server is listening on the correct network interfaces.
 
 ### Access DNS Server Settings
 
-1. Log in to the Technitium DNS web interface.
+1. Log in to the Technitium web interface.
 2. Navigate to **Settings**.
 3. Locate **DNS Server Local End Points**.
 4. Review the configured listening addresses.
@@ -816,196 +730,100 @@ correct network interfaces.
 
 By default, Technitium may display:
 
-```text
+```
 0.0.0.0:53
 [::]:53
 ```
 
-These settings mean:
-
 | Setting | Description |
-|---------|-------------|
+| --- | --- |
 | `0.0.0.0:53` | Listen on all IPv4 network interfaces |
 | `[::]:53` | Listen on all IPv6 network interfaces |
 
 ### IPv4-Only Configuration (Optional)
 
-If your network does not use IPv6, you may configure
-Technitium to listen only on IPv4.
+If your network does not use IPv6, you may configure Technitium to listen only on IPv4. Change:
 
-Change:
-
-```text
+```
 0.0.0.0:53
 [::]:53
 ```
 
 To:
 
-```text
+```
 0.0.0.0:53
 ```
 
-> **Important:** Removing the IPv6 listening address
-> does not disable IPv6 in Ubuntu Server.
-> It only prevents Technitium from listening
-> for DNS requests over IPv6.
+> **Important:** Removing the IPv6 listening address does not disable IPv6 in Ubuntu Server. It only stops Technitium from listening for DNS requests over IPv6. If IPv6 stays enabled on your client VLANs, clients can still learn other DNS servers over IPv6; see [pfSense-DHCP-and-DNS.md](pfSense-DHCP-and-DNS.md), Section 5.
 
 ### DNS Server IPv4 Source Addresses
 
-Locate:
-
-**DNS Server IPv4 Source Addresses**
-
-The default value is:
-
-```text
-0.0.0.0
-```
-
-This allows the operating system to select the
-appropriate IPv4 source address for outbound
-DNS requests.
-
-For a server with one network interface,
-this setting can normally remain unchanged.
+Locate **DNS Server IPv4 Source Addresses**. The default is `0.0.0.0`, which lets the operating system choose the source address for outbound DNS requests. For a server with one network interface this can stay unchanged.
 
 ### DNS Server IPv6 Source Addresses
 
-Locate:
-
-**DNS Server IPv6 Source Addresses**
-
-The default value is:
-
-```text
-::
-```
-
-This setting controls the IPv6 source address
-used for outbound DNS requests when IPv6 is enabled.
-
-If IPv6 is not being used, no changes are
-normally necessary.
+Locate **DNS Server IPv6 Source Addresses**. The default is `::`. If IPv6 is not used, no change is normally needed.
 
 ### Save Configuration
 
-If changes were made:
+If you made changes:
 
 1. Save the Technitium settings.
 2. Verify that the DNS service remains operational.
-3. Test DNS resolution from another computer.
+3. Test DNS resolution from another computer (Part 4).
 
 ### Verify DNS Port 53
 
 From the Ubuntu Server terminal, run:
 
-```bash
+```
 sudo ss -tulpn | grep ':53 '
 ```
 
-Verify that Technitium is listening on port 53.
+Verify that Technitium is listening on UDP and TCP port 53.
 
-DNS uses:
+**Result:** record the outcome in the Part 3 checklist (Step 8).
 
-- UDP port 53
-- TCP port 53
-
-### Test DNS Resolution
-
-From another computer, run:
-
-```bash
-dig @192.168.xxx.xx google.com A
-```
-
-For the secondary server:
-
-```bash
-dig @192.168.xxx.xx google.com A
-```
-
-### Expected Result
-
-```text
-status: NOERROR
-```
-
-The response should also contain an ANSWER SECTION
-with one or more IPv4 addresses.
-
-> **Note:** Replace the example IP addresses
-> with the addresses assigned to your DNS servers.
-
----
-
-**Result:** DNS server network settings verified.
 ---
 
 ## Step 4 - Configure DNS Forwarders
 
-Technitium DNS Server can resolve DNS queries recursively
-or forward requests to another DNS resolver.
+> **Primary only when clustering.** These settings synchronize to the secondary after it joins the cluster.
 
-For this installation, we will configure DNS forwarding
-using AdGuard DNS with DNS over TLS (DoT).
-
-DNS over TLS encrypts DNS queries between Technitium
-and the upstream DNS provider.
-
----
+Technitium can resolve DNS queries recursively or forward them to another resolver. This installation forwards to AdGuard DNS using DNS over TLS (DoT), which encrypts queries between Technitium and the upstream provider.
 
 ### Configure Forwarders
 
-1. Log in to the Technitium DNS web interface.
+1. Log in to the Technitium web interface.
 2. Navigate to **Settings**.
 3. Select **Proxy & Forwarders**.
 4. Locate the **Forwarders** section.
-5. Use **Quick Select** to add the desired DNS providers,
-   or manually enter the forwarder addresses.
+5. Use **Quick Select** to add the desired DNS providers, or manually enter the forwarder addresses.
 6. Configure the forwarder addresses.
 7. Set **Forwarder Protocol** to **DNS-over-TLS**.
 8. Enable **Concurrent Forwarding**.
 9. Set **Forwarder Concurrency** to `2`.
 10. Save the configuration.
 
----
-
 ### DNS Forwarder Configuration
-The following AdGuard DNS-over-TLS forwarders
-are configured in Technitium:
 
-```text
+The following AdGuard DNS-over-TLS forwarders are configured:
+
+```
 dns.adguard-dns.com (94.140.14.14:853)
 dns.adguard-dns.com (94.140.15.15:853)
 ```
 
-### Forwarder Settings
-
 | Setting | Configuration |
-|---------|---------------|
+| --- | --- |
 | Forwarder Protocol | DNS-over-TLS |
 | Concurrent Forwarding | Enabled |
 | Forwarder Concurrency | 2 |
 
-These settings allow Technitium to forward DNS
-queries to AdGuard DNS using encrypted connections.
+With concurrent forwarding enabled and concurrency set to 2, Technitium can query both configured forwarders simultaneously and use the fastest response.
 
-With concurrent forwarding enabled and concurrency
-set to 2, Technitium can query both configured
-forwarders simultaneously.
-
-The server selects forwarders based on their
-average latency and uses the fastest response.
-
-> **Note:** DNS over TLS encrypts DNS traffic
-> between Technitium and AdGuard DNS.
-> It does not automatically encrypt DNS traffic
-> between client devices and Technitium.
-
-For this installation:
-
-```text
+```
 Technitium DNS Server
          |
          v
@@ -1023,149 +841,43 @@ AdGuard 1   AdGuard 2
      DNS Response
 ```
 
-> **Note:** Concurrent forwarding may send the
-> same DNS query to multiple upstream providers.
->
-> This can improve availability but may increase
-> upstream DNS traffic.
+> **Note:** Concurrent forwarding may send the same query to both upstream endpoints. That can improve availability but may increase upstream traffic.
 
----
+> **Note:** DNS over TLS encrypts traffic between Technitium and AdGuard DNS. It does not encrypt traffic between client devices and Technitium.
 
 ### DNS over TLS (DoT)
 
-Under **Forwarder Protocol**, select:
+Under **Forwarder Protocol**, select **DNS-over-TLS**. DoT uses TCP port `853` by default. For AdGuard DNS the TLS hostname is `dns.adguard-dns.com`, and the IPv4 addresses are `94.140.14.14` and `94.140.15.15`.
 
-**DNS-over-TLS**
+> **Important:** Configuring an upstream IP address does not by itself enable encrypted DNS. The **Forwarder Protocol** must be set to **DNS-over-TLS**, and the correct TLS hostname must be used for certificate validation.
 
-DNS over TLS uses TCP port `853` by default.
-
-This encrypts DNS queries sent from Technitium
-to the configured upstream DNS provider.
-
-For AdGuard DNS, the TLS hostname is:
-
-```text
-dns.adguard-dns.com
-```
-
-The corresponding IPv4 addresses are:
-
-```text
-94.140.14.14
-94.140.15.15
-```
-
-> **Important:** Configuring a DNS server IP address
-> does not automatically enable encrypted DNS.
->
-> The **Forwarder Protocol** must be set to
-> **DNS-over-TLS**.
->
-> The correct TLS hostname must also be used
-> for certificate validation.
-
----
+> **Firewall note:** If the Technitium servers sit on a VLAN that blocks outbound TCP 853, they cannot reach AdGuard. Keep the servers on an unrestricted VLAN, or allow this traffic explicitly ([firewall-rules.md](firewall-rules.md), Section 3).
 
 ### Verify Forwarder Configuration
 
-After saving the settings, verify DNS resolution
-from another computer on the network.
+After saving, test resolution and upstream TLS as described in **Part 4** (Steps 2, 3, and 5).
 
-#### Test Primary Technitium DNS Server
-
-```bash
-dig @192.168.xxx.xx google.com A
-```
-
-#### Test Secondary Technitium DNS Server
-
-```bash
-dig @192.168.xxx.xx google.com A
-```
-
-### Expected Results
-
-Both DNS servers should return:
-
-```text
-status: NOERROR
-```
-
-The response should also contain an ANSWER SECTION
-with one or more IPv4 addresses.
-
-> **Important:** Replace the example IP addresses
-> with the IP addresses assigned to your
-> Technitium DNS servers.
+**Status: Configuration documented.** Record test results in the Part 4 checklist.
 
 ---
 
-### Verify DNS over TLS Connectivity
-
-On the Ubuntu Server running Technitium,
-you can test connectivity to the AdGuard
-DNS-over-TLS endpoint.
-
-```bash
-openssl s_client \
--connect 94.140.14.14:853 \
--servername dns.adguard-dns.com \
--verify_hostname dns.adguard-dns.com \
--verify_return_error </dev/null
-```
-
-Look for:
-
-```text
-Verification: OK
-Verify return code: 0 (ok)
-```
-
-This verifies that the server can establish a TLS
-connection and validate the certificate presented
-by the upstream endpoint.
-
-> **Note:** This test confirms TLS connectivity
-> and certificate validation.
->
-> It does not independently prove that Technitium
-> is forwarding DNS queries using TLS.
-
----
-
-### Configuration Complete
-
-The Technitium DNS servers are now configured
-to forward DNS queries using encrypted DNS over TLS.
-
-Configuration summary:
-
-- DNS Provider: AdGuard DNS
-- Forwarder Protocol: DNS over TLS
-- DNS Port: TCP 853
-- Concurrent Forwarding: Enabled
-- Forwarder Concurrency: 2
-
-**Status: Configuration documented.**
-
----
 ## Step 5 - Configure Built-in DNS Server Logging
 
-Technitium DNS Server includes built-in logging for server errors, warnings, and administrative events. This logging does not require installing an additional application.
+> **Primary only when clustering,** unless you want different logging on a node. Settings synchronize from the primary after joining.
 
-### Step 5.1 — Access Logging Settings
+Technitium includes built-in logging for server errors, warnings, and administrative events. It does not require installing an additional app.
 
-1. Log in to the Technitium DNS Server web interface.
+### Step 5.1 - Access Logging Settings
+
+1. Log in to the Technitium web interface.
 2. Navigate to **Settings**.
 3. Select the **Logging** section.
-4. Review the existing logging configuration.
+4. Review the existing configuration.
 
-### Step 5.2 — Configure Logging
-
-Use the following settings:
+### Step 5.2 - Configure Logging
 
 | Setting | Configuration |
-|---|---|
+| --- | --- |
 | Enable Logging To | File |
 | Ignore Resolver Error Logs | Unchecked |
 | No Stack Trace | Unchecked |
@@ -1174,50 +886,48 @@ Use the following settings:
 | Log Folder Path | `/var/log/technitium/dns` |
 | Max Log File Days | 30 |
 
-**Note:** Leave **Log All Queries** disabled when using the Query Logs (SQLite) app to avoid duplicating detailed query records.
+**Note:** Leave **Log All Queries** disabled when using the Query Logs (SQLite) app, to avoid duplicating detailed query records.
 
 Click **Save Settings**.
 
-### Step 5.3 — Verify Built-in Logging
+### Step 5.3 - Verify Built-in Logging
 
 On Ubuntu Server, run:
 
-```bash
+```
 sudo ls -lah /var/log/technitium/dns
 ```
 
-Verify that the directory contains Technitium log files.
+Verify that the directory contains Technitium log files. To identify recently modified log files:
 
-To identify recently modified log files:
-
-```bash
+```
 sudo find /var/log/technitium/dns -maxdepth 1 -type f -printf '%T@ %p\n' | sort -nr | head
 ```
 
-Repeat these steps on both the primary Proxmox VM and secondary Raspberry Pi 4.
+Check this on **both** servers, since each node writes its own log files.
 
 ---
 
 ## Step 6 - Install and Configure Query Logs (SQLite)
 
-The Query Logs (SQLite) app provides persistent DNS query history, allowing administrators to investigate DNS requests, client activity, and blocked domains.
+The Query Logs (SQLite) app provides persistent DNS query history so you can investigate requests, client activity, and blocked domains.
 
-### Step 6.1 — Install the App
+> **Clustering:** Install and configure the app on the primary. After the secondary joins, confirm that the app is present there (Apps are synchronized from the primary). The **database itself is local to each node**; query history is not synchronized.
 
-1. Log in to the Technitium DNS Server web interface.
+### Step 6.1 - Install the App
+
+1. Log in to the Technitium web interface.
 2. Navigate to **Apps**.
 3. Open **App Store**.
 4. Locate **Query Logs (Sqlite)**.
 5. Click **Install**.
 6. Wait for installation to complete.
 
-### Step 6.2 — Configure SQLite Logging
+### Step 6.2 - Configure SQLite Logging
 
-Open **Apps → Query Logs (Sqlite) → Config**.
+Open **Apps > Query Logs (Sqlite) > Config** and use:
 
-Use the following configuration:
-
-```json
+```
 {
   "enableLogging": true,
   "maxQueueSize": 200000,
@@ -1235,905 +945,290 @@ Click **Save**.
 ### Configuration Explanation
 
 | Setting | Purpose |
-|---|---|
+| --- | --- |
 | enableLogging | Enables DNS query logging |
 | maxQueueSize | Maximum queued log entries |
 | maxLogDays | Maximum retention age |
 | maxLogRecords | Maximum retained query records |
 | enableVacuum | Controls SQLite database vacuuming |
-| useInMemoryDb | Stores database on disk when false |
+| useInMemoryDb | Stores the database on disk when false |
 | sqliteDbPath | SQLite database filename |
 | connectionString | SQLite database connection configuration |
 
 **Important:** The database may reach the record limit before 30 days have elapsed. Actual retention depends on DNS query volume.
 
-### Step 6.3 — Verify Query Logging
+> **Privacy note:** Query logs record which sites each device looks up. Keep retention short, restrict who can open the admin interface, and never publish logs.
 
-From another computer, test the primary server:
+> **Storage note:** SQLite logging generates ongoing disk writes. On a Raspberry Pi with microSD storage, monitor free space and storage health, or boot from a USB SSD ([Maintenance-and-Hardening.md](Maintenance-and-Hardening.md), Section 6).
 
-```bash
-dig @192.168.xxx.xx example.com
-```
+### Step 6.3 - Verify Query Logging
 
-Test the secondary server:
-
-```bash
-dig @192.168.xxx.xx example.com
-```
-
-Replace these example addresses with your actual DNS server IPs.
-
-In the Technitium web console:
-
-1. Navigate to **Logs → Query Logs**.
-2. Select the SQLite query log source.
-3. Search for `example.com`.
-4. Verify that the query was recorded.
-5. Confirm the client IP address, timestamp, response code, and query type.
-
-### Step 6.4 — Verify Both DNS Servers
-
-Repeat the installation and configuration on both Technitium DNS servers.
-
-Query log databases are maintained locally on each server. Do not assume that query history is synchronized between cluster members.
-
-**Storage Note:** SQLite logging generates ongoing disk writes. When using a Raspberry Pi with microSD storage, monitor available disk space and storage health.
-
-### Expected Result
-
-After verification, both Technitium DNS servers should have built-in logging enabled and Query Logs (SQLite) configured to retain searchable DNS query history.
+Test logging on each server as described in **Part 4, Step 6**.
 
 ---
 
-## Step 7 - Verify DNS Resolution
+## Step 7 - Verify Technitium Services
 
-After configuring the DNS forwarders, verify that both
-Technitium DNS servers can successfully resolve domain names.
+After the servers respond to DNS, verify that Technitium runs and starts automatically at boot. Do this on **both** servers.
 
-Perform these tests from another computer on your network.
+### Step 7.1 - Service Status
 
-> **Important:** Replace the example IP addresses below
-> with the actual IP addresses assigned to your
-> primary and secondary Technitium DNS servers.
-
-### Test Primary DNS (UDP)
-
-Open a terminal and run:
-
-```bash
-dig @192.168.xxx.xx google.com A
 ```
-
-### Test Secondary DNS (UDP)
-
-```bash
-dig @192.168.xxx.xx google.com A
-```
-
-### Expected Results
-
-Both DNS servers should return:
-
-```text
-status: NOERROR
-```
-
-The response should also contain an ANSWER SECTION
-with one or more IPv4 addresses.
-
-Example:
-
-```text
-;; ANSWER SECTION:
-google.com.    300    IN    A    142.250.190.14
-```
-
-> **Note:** The returned IP address and TTL may differ.
-
-### Verify DNS Server Response
-
-At the bottom of the `dig` output, locate the SERVER line.
-
-Example for the primary server:
-
-```text
-;; SERVER: 192.168.xxx.xx#53
-```
-
-This confirms which DNS server responded to the query.
-
----
-
-### Verify DNS over TCP
-
-DNS normally uses UDP port 53, but TCP port 53
-must also be available for proper DNS operation.
-
-#### Test Primary DNS (TCP)
-
-```bash
-dig +tcp @192.168.xxx.xx google.com A
-```
-
-#### Test Secondary DNS (TCP)
-
-```bash
-dig +tcp @192.168.xxx.xx google.com A
-```
-
-### Expected Results
-
-Both DNS servers should return:
-
-```text
-status: NOERROR
-```
-
-The response should also contain an ANSWER SECTION
-with one or more IPv4 addresses.
-
-Verify that the SERVER line identifies the
-correct Technitium DNS server.
-
----
-
-### Verification Summary
-
-| Test | Expected Result |
-|------|-----------------|
-| Primary DNS - UDP | NOERROR + IPv4 address |
-| Secondary DNS - UDP | NOERROR + IPv4 address |
-| Primary DNS - TCP | NOERROR + IPv4 address |
-| Secondary DNS - TCP | NOERROR + IPv4 address |
-
-If all four tests complete successfully,
-both Technitium DNS servers are responding
-to DNS queries over UDP and TCP.
-
-**Status: DNS resolution verified after successful testing.**
-
----
-
-
-## Step 8 - Verify DNS Server Availability
-
-After verifying DNS resolution in Step 7, confirm that both Technitium DNS servers are reachable over the network.
-
-Perform these tests from another computer on your network.
-
-> **Important:** Replace the example IP addresses with the actual addresses assigned to your primary and secondary Technitium DNS servers.
-
-### Test Primary DNS Server
-
-Open a terminal and run:
-
-```bash
-ping -c 4 192.168.xxx.xx
-```
-
-### Test Secondary DNS Server
-
-```bash
-ping -c 4 192.168.xxx.xx
-```
-
-### Expected Results
-
-Both servers should respond to the ping requests.
-
-Example:
-
-```text
-64 bytes from 192.168.xxx.xx: icmp_seq=1 ttl=64 time=0.532 ms
-64 bytes from 192.168.xxx.xx: icmp_seq=2 ttl=64 time=0.487 ms
-64 bytes from 192.168.xxx.xx: icmp_seq=3 ttl=64 time=0.501 ms
-64 bytes from 192.168.xxx.xx: icmp_seq=4 ttl=64 time=0.493 ms
-```
-
-At the bottom of the output, look for:
-
-```text
-4 packets transmitted, 4 received, 0% packet loss
-```
-
-### Understanding the Results
-
-| Result | Meaning |
-|---|---|
-| 0% packet loss | All ping requests received responses |
-| 25% packet loss | One of four requests did not receive a response |
-| 50% packet loss | Two of four requests did not receive responses |
-| 100% packet loss | No ping responses were received |
-| Destination Host Unreachable | The destination could not be reached from the reporting device |
-
-### Important Notes
-
-> **ICMP Traffic:** Some networks block ICMP traffic through firewall rules.
->
-> ICMP has been enabled in my network configuration to allow connectivity testing.
->
-> A failed ping does not necessarily mean the Technitium DNS server is unavailable.
->
-> The DNS resolution tests performed in Step 7 provide a more meaningful verification of DNS functionality.
-
-### Verification Summary
-
-| Test | Expected Result |
-|---|---|
-| Primary DNS Server | Ping replies received |
-| Secondary DNS Server | Ping replies received |
-| Packet Loss | Ideally 0% |
-
-**Status: Network connectivity verified after successful testing.**
-
----
-## Step 9 - Verify Technitium Services
-
-After confirming network connectivity, verify that Technitium DNS Server is running and configured to start automatically when Ubuntu Server boots.
-
-Perform the following steps on **both Technitium DNS servers**:
-
-- Primary DNS — Proxmox Ubuntu Server VM
-- Secondary DNS — Raspberry Pi 4 running Ubuntu Server
-
-### Step 9.1 - Verify Technitium Service Status
-
-Connect to the Ubuntu Server using SSH.
-
-Run:
-
-```bash
 sudo systemctl status dns.service
 ```
 
-### Expected Result
+Expected: `Active: active (running)`.
 
-Look for the following line:
+### Step 7.2 - Automatic Startup
 
-```text
-Active: active (running)
 ```
-
-This confirms that the Technitium DNS service is currently running.
-
-### Step 9.2 - Verify Automatic Startup
-
-To verify that Technitium starts automatically when Ubuntu Server boots, run:
-
-```bash
 sudo systemctl is-enabled dns.service
 ```
 
-### Expected Result
+Expected: `enabled`. If it is not enabled:
 
-```text
-enabled
 ```
-
-This confirms that the service is configured to start automatically during the normal system boot process.
-
-### Step 9.3 - Enable Automatic Startup (If Necessary)
-
-If the service is not enabled, run:
-
-```bash
 sudo systemctl enable dns.service
-```
-
-Verify the setting again:
-
-```bash
 sudo systemctl is-enabled dns.service
 ```
 
-Expected:
+> **Note:** Enabling a service configures it to start at boot; it does not necessarily start it immediately.
 
-```text
-enabled
+### Step 7.3 - Start Technitium if It Is Not Running
+
 ```
-
-> **Note:** Enabling a service does not necessarily start it immediately. It configures the service to start during the normal boot process.
-
-### Step 9.4 - Start Technitium (If Not Running)
-
-If the service is not running, start it using:
-
-```bash
 sudo systemctl start dns.service
-```
-
-Verify the service status:
-
-```bash
 sudo systemctl status dns.service
 ```
 
-Expected:
+### Step 7.4 - Troubleshoot Startup Problems
 
-```text
-Active: active (running)
 ```
-
-### Step 9.5 - Troubleshoot Service Issues
-
-If Technitium fails to start, review the service logs:
-
-```bash
 sudo journalctl -u dns.service -n 50 --no-pager
 ```
 
-This displays the 50 most recent journal entries associated with the Technitium DNS service.
+Check for startup failures, port 53 conflicts, configuration errors, permission problems, or missing dependencies.
 
-Check for errors related to:
-
-- Service startup failures.
-- Port 53 conflicts.
-- Configuration errors.
-- File or directory permissions.
-- Missing dependencies.
-
-> **Important:** Do not repeatedly restart the service without reviewing the error messages. Identify the cause before making configuration changes.
-
-### Verification Summary
-
-| Verification | Expected Result |
-|---|---|
-| Primary DNS service | Active (running) |
-| Secondary DNS service | Active (running) |
-| Primary automatic startup | Enabled |
-| Secondary automatic startup | Enabled |
-| Service logs | No unresolved critical startup errors |
-
-### Result
-
-If both Technitium DNS services are running and enabled, the service verification is complete.
-
-**Status: Technitium services verified after successful testing.**
-
----
-## Step 10 - Verify Configuration After Reboot
-
-After completing the initial configuration, verify that both Technitium DNS servers start automatically and function correctly after a reboot.
-
-This test confirms that:
-
-- Ubuntu Server boots successfully.
-- Technitium DNS starts automatically.
-- DNS resolution works after reboot.
-- The Raspberry Pi 4 synchronizes its system clock.
-- DNSSEC-related time synchronization problems do not return.
-
-> **Important:** Reboot one DNS server at a time to avoid unnecessary DNS interruptions. If these servers are already serving network clients, verify that the remaining DNS server can handle requests during the reboot.
+> **Important:** Do not repeatedly restart the service without reading the error messages. Identify the cause first.
 
 ---
 
-### Step 10.1 - Reboot the Primary DNS Server
+## Step 8 - Verify Configuration After Reboot
 
-Connect to the primary Technitium DNS server running on the Proxmox Ubuntu Server VM.
+Verify that both servers start automatically and work after a reboot. This confirms that Ubuntu boots, Technitium starts on its own, DNS works, and (on the Raspberry Pi) the clock synchronizes so DNSSEC problems do not return.
 
-Run:
+> **Important:** Reboot one server at a time. If the servers already serve network clients, confirm that the other server is working before you reboot the first.
 
-```bash
+### Step 8.1 - Reboot the Primary
+
+```
 sudo reboot
 ```
 
-Wait for Ubuntu Server to finish rebooting.
+After the server returns, reconnect over SSH and run:
 
-Reconnect using SSH.
-
-### Verify Technitium Service
-
-Run:
-
-```bash
+```
 sudo systemctl status dns.service
-```
-
-Expected:
-
-```text
-Active: active (running)
-```
-
-Verify automatic startup:
-
-```bash
 systemctl is-enabled dns.service
 ```
 
-Expected:
+Expected: `active (running)` and `enabled`. Then, from another computer:
 
-```text
-enabled
+```
+dig @192.168.XXX.XX google.com A      # Primary
 ```
 
-### Verify Primary DNS Resolution
+Expected: `status: NOERROR` with an ANSWER SECTION.
 
-From another computer on your network, run:
+### Step 8.2 - Reboot the Secondary
 
-```bash
-dig @192.168.xxx.xx google.com A
+After the primary checks out, repeat on the Raspberry Pi:
+
 ```
-
-Expected:
-
-```text
-status: NOERROR
-```
-
-The response should also contain an ANSWER SECTION with one or more IPv4 addresses.
-
-> **Note:** Replace the example IP address with the address assigned to your primary Technitium DNS server.
-
----
-
-### Step 10.2 - Reboot the Secondary DNS Server
-
-After verifying that the primary server is functioning correctly, connect to the Raspberry Pi 4 running Ubuntu Server.
-
-Run:
-
-```bash
 sudo reboot
 ```
 
-Wait for the Raspberry Pi to finish rebooting.
+After it returns:
 
-Reconnect using SSH.
-
-### Verify Technitium Service
-
-Run:
-
-```bash
+```
 sudo systemctl status dns.service
-```
-
-Expected:
-
-```text
-Active: active (running)
-```
-
-Verify automatic startup:
-
-```bash
 systemctl is-enabled dns.service
 ```
 
-Expected:
+Then, from another computer:
 
-```text
-enabled
+```
+dig @192.168.XXX.XX google.com A      # Secondary
 ```
 
-### Verify Secondary DNS Resolution
+### Step 8.3 - Verify Raspberry Pi Time Synchronization
 
-From another computer on your network, run:
+The Raspberry Pi 4 has no battery-backed RTC, so it may boot with an incorrect clock. **Do not manually set the time or restart Chrony before checking.** On the Pi:
 
-```bash
-dig @192.168.xxx.xx google.com A
 ```
-
-Expected:
-
-```text
-status: NOERROR
-```
-
-The response should also contain an ANSWER SECTION with one or more IPv4 addresses.
-
----
-
-### Step 10.3 - Verify Raspberry Pi Time Synchronization
-
-The Raspberry Pi 4 does not have a built-in battery-backed real-time clock (RTC).
-
-Because of this, Ubuntu Server may initially boot with an incorrect system time.
-
-Earlier in this guide, Chrony was configured to correct the system clock automatically.
-
-We must verify that this configuration continues to work after reboot.
-
-**Do not manually set the system time or restart Chrony before performing these checks.**
-
-On the Raspberry Pi, run:
-
-```bash
 date
-```
-
-Verify that the current date and time are correct.
-
-Next, run:
-
-```bash
 timedatectl
-```
-
-Expected:
-
-```text
-System clock synchronized: yes
-NTP service: active
-```
-
-Check Chrony tracking:
-
-```bash
 chronyc tracking
-```
-
-Expected:
-
-```text
-Leap status     : Normal
-```
-
-Finally, verify the available NTP sources:
-
-```bash
 chronyc sources -v
 ```
 
-Look for a selected time source indicated by:
-
-```text
-^*
-```
-
-> **Note:** Synchronization may take some time after reboot. If the clock is initially incorrect, wait for Chrony to synchronize and check again.
->
-> If synchronization does not occur, review the Chrony boot-time configuration documented earlier in this guide.
-
----
-
-### Step 10.4 - Verify DNSSEC Behavior After Reboot
-
-Because an incorrect system clock previously caused DNSSEC validation errors on the Raspberry Pi, perform an additional DNSSEC test.
-
-From another computer, run:
-
-```bash
-dig @192.168.xxx.xx dnssec-failed.org A
-```
-
-Use the IP address of the secondary Technitium DNS server.
-
-### Expected Result
-
-```text
-status: SERVFAIL
-```
-
-The response may also include:
-
-```text
-EDE: 6 (DNSSEC Bogus)
-```
-
-The domain `dnssec-failed.org` intentionally contains invalid DNSSEC signatures.
-
-A DNSSEC-validating resolver should reject the response.
-
-> **Important:** If an upstream DNS provider performs DNSSEC validation, the rejection may occur upstream rather than within Technitium itself.
->
-> This test confirms that invalid DNSSEC data is rejected somewhere in the DNS resolution path.
-
-### Verify Normal DNS Resolution
-
-Also test a legitimate domain:
-
-```bash
-dig @192.168.xxx.xx cloudflare.com A
-```
-
 Expected:
 
-```text
-status: NOERROR
+```
+System clock synchronized: yes
+NTP service: active
+Leap status     : Normal
 ```
 
-The response should contain one or more IPv4 addresses.
+and a selected source marked `^*`.
 
-Together, these tests help confirm that normal DNS resolution works and invalid DNSSEC data is rejected after reboot.
+> **Note:** Synchronization may take a while after boot. If it does not synchronize, see [Part 2A](#part-2a---raspberry-pi-4-time-synchronization-optional).
 
----
+### Step 8.4 - Verify DNSSEC Behavior After Reboot
 
-### Step 10.5 - Final Verification
+Because an incorrect clock previously caused DNSSEC errors on the Pi, run the DNSSEC tests in **Part 4, Step 4** against the secondary after the reboot.
 
-After both servers have been rebooted and tested, verify the following:
+### Step 8.5 - Part 3 Checklist
 
-| Verification | Primary DNS | Secondary DNS |
-|---|---|---|
-| Ubuntu Server boots successfully | PASS / FAIL | PASS / FAIL |
-| Technitium service running | PASS / FAIL | PASS / FAIL |
-| Technitium automatic startup enabled | PASS / FAIL | PASS / FAIL |
-| DNS resolution successful | PASS / FAIL | PASS / FAIL |
-| DNSSEC-invalid domain rejected | Not tested | PASS / FAIL |
-| Chrony synchronized | Not tested | PASS / FAIL |
-| Built-in DNS logging | PASS / FAIL | PASS / FAIL |
-| SQLite query logging | PASS / FAIL | PASS / FAIL |
-| Test query appears in SQLite logs | PASS / FAIL | PASS / FAIL |
+| Verification | Primary | Secondary |
+| --- | --- | --- |
+| Ubuntu boots successfully | NOT TESTED | NOT TESTED |
+| Technitium service running | NOT TESTED | NOT TESTED |
+| Automatic startup enabled | NOT TESTED | NOT TESTED |
+| Listening on UDP and TCP 53 | NOT TESTED | NOT TESTED |
+| DNS resolution after reboot | NOT TESTED | NOT TESTED |
+| Chrony synchronized after reboot | n/a | NOT TESTED |
+| Built-in logging files present | NOT TESTED | NOT TESTED |
+| SQLite query log shows test query | NOT TESTED | NOT TESTED |
 
-> **Note:** Replace PASS / FAIL with the actual results after completing the tests. A test that has not been performed should be marked NOT TESTED.
+> **Note:** Replace NOT TESTED with PASS or FAIL after you run each test. A test that has not been run is never PASS.
 
 ---
 
 ## Initial Configuration Complete
 
-After successfully completing all verification steps:
+After the checks above pass:
 
-- Both Technitium DNS servers are installed.
-- Administrator credentials have been configured.
-- DNS listening settings have been reviewed.
-- DNS forwarding has been configured.
-- Built-in DNS server logging has been configured.
-- Query Logs (SQLite) has been installed and configured.
-- DNS query logging has been verified on both servers (if tested).
-- UDP and TCP DNS resolution have been tested.
-- Both Technitium services are running.
-- Automatic service startup has been verified.
-- Both servers have been tested after reboot.
-- Raspberry Pi time synchronization has been verified.
-- DNSSEC behavior has been tested after reboot.
+- Both Technitium servers are installed and reachable.
+- Administrator credentials are configured.
+- DNS listening settings are reviewed.
+- Forwarders, logging, and Query Logs (SQLite) are configured on the primary.
+- Both servers have been tested after reboot, including Raspberry Pi time synchronization.
 
-**The initial Technitium DNS installation and configuration are complete after all required tests pass.**
-
-> **Next Step:** Configure Technitium DNS clustering to connect the primary and secondary servers.
+> **Next steps:**
 >
-> Clustering will be documented separately.
+> 1. Create DHCP reservations and hand out both DNS servers: [pfSense-DHCP-and-DNS.md](pfSense-DHCP-and-DNS.md).
+> 2. Join the servers in a cluster: [Technitium-DNS-Cluster-Setup.md](Technitium-DNS-Cluster-Setup.md).
+> 3. Configure filtering: [AdvancedBlocking.md](AdvancedBlocking.md).
 
 ---
+
 # Part 4 - Verify DNS Resolution
 
-After installing and configuring both Technitium DNS servers,
-perform the following tests to verify DNS resolution,
-network connectivity, DNSSEC behavior, and DNS forwarding.
+This is the single place where the DNS tests are defined. Run them after the initial configuration (Part 3), after the cluster is built, and after any firewall or forwarder change.
 
-These tests should be performed after completing the initial
-configuration and reboot verification in Part 3.
-
-> **Important:** Replace the example IP addresses throughout
-> this section with the actual IP addresses assigned to your
-> primary and secondary Technitium DNS servers.
-
----
+> **Important:** Replace the placeholder addresses with your actual servers. Test each server by its **own** address and mark each result separately.
 
 ## Step 1 - Install DNS Utilities
 
-From another Linux computer on your network,
-install the DNS utilities if necessary.
+From another Linux computer on your network:
 
-On Ubuntu:
-
-```bash
+```
 sudo apt update
 sudo apt install dnsutils -y
 ```
 
-The `dig` utility allows you to send DNS queries directly
-to a specified DNS server.
+The `dig` utility sends DNS queries directly to a server you choose.
 
----
+## Step 2 - Resolution over UDP
 
-## Step 2 - Verify Primary and Secondary DNS Resolution
-
-Verify that both Technitium DNS servers can resolve
-external domain names.
-
-### Test Primary DNS Server
-
-```bash
-dig @192.168.xxx.xx google.com A
+```
+dig @192.168.XXX.XX google.com A      # Primary
+dig @192.168.XXX.XX google.com A      # Secondary
 ```
 
-### Test Secondary DNS Server
+Expected for both: `status: NOERROR` with an ANSWER SECTION containing one or more IPv4 addresses, for example:
 
-```bash
-dig @192.168.xxx.xx google.com A
 ```
-
-### Expected Results
-
-Both queries should return:
-
-```text
-status: NOERROR
-```
-
-The response should contain an ANSWER SECTION
-with one or more IPv4 addresses.
-
-Example:
-
-```text
 ;; ANSWER SECTION:
 google.com.    300    IN    A    142.250.190.14
 ```
 
-> **Note:** The returned IP addresses and TTL values
-> may differ from the example.
+(The address and TTL will differ.) At the bottom of the output, check the SERVER line, such as `;; SERVER: 192.168.XXX.XX#53`, to confirm which server answered.
 
-At the bottom of the response, verify the SERVER line:
+## Step 3 - Resolution over TCP and Reachability
 
-```text
-;; SERVER: 192.168.xxx.xx#53
+DNS normally uses UDP, but TCP port 53 must also work.
+
+```
+dig +tcp @192.168.XXX.XX google.com A      # Primary
+dig +tcp @192.168.XXX.XX google.com A      # Secondary
 ```
 
-This confirms which DNS server responded.
+Expected: `status: NOERROR` with an answer. If a TCP query fails, check the host firewall and the pfSense rules for TCP 53.
 
----
+Optional reachability test:
 
-## Step 3 - Verify DNS over TCP
-
-DNS normally uses UDP port 53, but TCP port 53
-is also required for proper DNS operation.
-
-Verify that both Technitium servers respond
-to DNS queries over TCP.
-
-### Test Primary DNS Server
-
-```bash
-dig +tcp @192.168.xxx.xx google.com A
+```
+ping -c 4 192.168.XXX.XX      # Primary
+ping -c 4 192.168.XXX.XX      # Secondary
 ```
 
-### Test Secondary DNS Server
+Look for `0% packet loss`.
 
-```bash
-dig +tcp @192.168.xxx.xx google.com A
-```
-
-### Expected Results
-
-Both queries should return:
-
-```text
-status: NOERROR
-```
-
-An ANSWER SECTION containing one or more IPv4 addresses
-should also be present.
-
-If either query fails, verify that TCP port 53 is allowed
-through the server firewall and applicable network firewall rules.
-
----
+> **Note:** Some networks block ICMP. A failed ping does not prove a DNS server is down; the `dig` tests are more meaningful.
 
 ## Step 4 - Verify DNSSEC Behavior
 
-DNS Security Extensions (DNSSEC) help protect DNS
-responses against certain forms of tampering.
+### A valid domain
 
-The following tests check how the DNS resolution path
-handles valid and invalid DNSSEC data.
-
-### Test a Valid Domain
-
-Run the following command against the primary server:
-
-```bash
-dig @192.168.xxx.xx cloudflare.com A +dnssec
+```
+dig @192.168.XXX.XX cloudflare.com A +dnssec      # Primary
+dig @192.168.XXX.XX cloudflare.com A +dnssec      # Secondary
 ```
 
-Repeat the test against the secondary server:
+Expected: `status: NOERROR`. The response may include the `ad` flag (`flags: qr rd ra ad`), which indicates DNSSEC authentication. The absence of `ad` does not necessarily mean a failure, since the resolver configuration and upstream provider affect it.
 
-```bash
-dig @192.168.xxx.xx cloudflare.com A +dnssec
+### An intentionally invalid domain
+
+`dnssec-failed.org` has deliberately broken DNSSEC signatures; a validating resolver should reject it.
+
+```
+dig @192.168.XXX.XX dnssec-failed.org A      # Primary
+dig @192.168.XXX.XX dnssec-failed.org A      # Secondary
 ```
 
-### Expected Results
+Expected:
 
-Both queries should return:
-
-```text
-status: NOERROR
 ```
-
-The response should contain an ANSWER SECTION
-with one or more IPv4 addresses.
-
-Depending on the resolver configuration,
-the response may contain the authenticated data flag:
-
-```text
-flags: qr rd ra ad
-```
-
-The `ad` flag indicates that the response has been
-authenticated using DNSSEC.
-
-> **Note:** The absence of the `ad` flag does not
-> necessarily mean that DNS resolution failed.
-> The resolver configuration and upstream DNS provider
-> can affect whether the flag appears.
-
-### Test an Invalid DNSSEC Domain
-
-The domain `dnssec-failed.org` intentionally contains
-invalid DNSSEC signatures.
-
-A DNSSEC-validating resolver should reject its records.
-
-#### Test Primary DNS Server
-
-```bash
-dig @192.168.xxx.xx dnssec-failed.org A
-```
-
-#### Test Secondary DNS Server
-
-```bash
-dig @192.168.xxx.xx dnssec-failed.org A
-```
-
-### Expected Results
-
-```text
 status: SERVFAIL
 ```
 
-The response may also contain:
+The response may also include `EDE: 6 (DNSSEC Bogus)`.
 
-```text
-EDE: 6 (DNSSEC Bogus)
+### Previously recorded result
+
+**Test date:** October 19, 2026, secondary server:
+
 ```
-
-### Previously Recorded Test Results
-
-**Test Date:** October 19, 2026
-
-The following results were recorded during testing
-of the secondary Technitium DNS server:
-
-```text
 status: SERVFAIL
 EDE: 6 (DNSSEC Bogus)
 EDE: 22 (No Reachable Authority)
 EDE: 13 (Cached Error)
 ```
 
-### Explanation
+The invalid domain was rejected. This is expected when DNSSEC validation succeeds somewhere in the resolution path.
 
-The invalid DNSSEC domain was rejected.
+> **Important:** If your upstream provider validates DNSSEC, the rejection may happen upstream instead of in Technitium. This test shows that invalid DNSSEC data is rejected somewhere in the path; it does not independently prove Technitium validated it.
 
-This is the expected behavior when DNSSEC validation
-is performed successfully somewhere in the DNS
-resolution path.
-
-**Important:** When Technitium uses an upstream DNS
-provider that performs DNSSEC validation, the upstream
-provider may reject the invalid response.
-
-Therefore, this test does not independently prove
-that Technitium performed DNSSEC validation.
-
-### Recorded Result
-
-```text
-Secondary DNS - Invalid DNSSEC Domain: PASS
-```
-
-> **Note:** The PASS result above refers to the
-> October 19, 2026 test. Other verification results
-> should be recorded after completing their tests.
-
----
+**Recorded result:** `Secondary DNS - Invalid DNSSEC Domain: PASS` (October 19, 2026 test). Record other results after running them.
 
 ## Step 5 - Verify DNS-over-TLS Forwarding
 
-If DNS-over-TLS was configured in Part 3,
-verify that the configured upstream DNS servers
-are reachable.
-
-For this installation, AdGuard DNS was configured
-as the upstream provider.
-
-### Configured Forwarders
+### Configured forwarders
 
 | Setting | Configuration |
-|---|---|
+| --- | --- |
 | DNS Provider | AdGuard DNS |
 | Primary Forwarder | 94.140.14.14 |
 | Secondary Forwarder | 94.140.15.15 |
@@ -2143,30 +1238,22 @@ as the upstream provider.
 | Concurrent Forwarding | Enabled |
 | Forwarder Concurrency | 2 |
 
-> **Note:** These are the forwarders used in this
-> installation. Other DNS providers may use different
-> addresses, hostnames, and protocols.
+> **Note:** Other providers use different addresses, hostnames, and protocols.
 
-### Step 5.1 - Verify Forwarder Configuration
+### Step 5.1 - Review the configuration
 
-Log in to the Technitium DNS web interface.
+1. Open **Settings > Proxy & Forwarders**.
+2. Confirm the forwarder addresses and hostnames.
+3. Confirm the protocol is **DNS-over-TLS**.
+4. Confirm the settings were saved.
 
-1. Open **Settings**.
-2. Navigate to **Proxy & Forwarders**.
-3. Locate the configured forwarders.
-4. Verify the forwarder addresses and hostnames.
-5. Verify that the forwarder protocol is set to **DNS-over-TLS**.
-6. Confirm that the settings have been saved.
+If the servers are clustered, this is defined on the primary and synchronized; still confirm it appears on the secondary.
 
-Perform this verification on both DNS servers.
+### Step 5.2 - Test TLS connectivity to the upstream
 
-### Step 5.2 - Test DNS-over-TLS Connectivity
+On each Ubuntu server:
 
-Connect to the primary Ubuntu DNS server using SSH.
-
-Run:
-
-```bash
+```
 openssl s_client \
   -connect 94.140.14.14:853 \
   -servername dns.adguard-dns.com \
@@ -2174,198 +1261,109 @@ openssl s_client \
   -verify_return_error </dev/null
 ```
 
-Repeat the test using the secondary AdGuard endpoint:
+Repeat with `94.140.15.15`. Look for `Verification: OK` or `Verify return code: 0 (ok)`.
 
-```bash
-openssl s_client \
-  -connect 94.140.15.15:853 \
-  -servername dns.adguard-dns.com \
-  -verify_hostname dns.adguard-dns.com \
-  -verify_return_error </dev/null
+> **Important:** This proves the server can make a TLS connection and validate the certificate. It does not prove that Technitium used that connection for a particular query.
+
+### Step 5.3 - Verify actual forwarding traffic
+
+Install `tcpdump` if needed:
+
 ```
-
-### Expected Results
-
-Look for:
-
-```text
-Verification: OK
-```
-
-Or:
-
-```text
-Verify return code: 0 (ok)
-```
-
-A successful result indicates that the server can
-establish a TLS connection and validate the certificate
-presented by the upstream DNS endpoint.
-
-Repeat these tests from the secondary Technitium server.
-
-> **Important:** These commands test TLS connectivity
-> to the upstream DNS provider.
->
-> They do not independently prove that Technitium
-> is forwarding DNS queries through that connection.
-
-### Step 5.3 - Verify Actual Forwarding Traffic
-
-To confirm that Technitium is communicating with
-the configured upstream DNS servers over TCP port 853,
-inspect the network traffic.
-
-If `tcpdump` is not installed, install it first:
-
-```bash
 sudo apt install tcpdump -y
 ```
 
-On the Technitium server, run:
+On the Technitium server:
 
-```bash
+```
 sudo tcpdump -ni any \
   'tcp port 853 and (host 94.140.14.14 or host 94.140.15.15)'
 ```
 
-While the capture is running, generate a DNS query
-from another computer:
+While it runs, query a domain that is not already cached from another computer:
 
-```bash
-dig @192.168.xxx.xx example.com A
+```
+dig @192.168.XXX.XX example.com A
 ```
 
-You may need to query a domain that is not already
-cached by Technitium.
-
-### Expected Results
-
-The packet capture should show TCP traffic
-between the Technitium server and one or both
-configured AdGuard DNS endpoints.
-
-> **Note:** Because concurrent forwarding is enabled,
-> Technitium may communicate with either or both
-> configured forwarders.
->
-> Cached DNS responses may not generate new
-> upstream traffic.
->
-> Traffic on TCP port 853 provides evidence of
-> DNS-over-TLS connectivity. A packet capture showing
-> an established TLS session carrying traffic during
-> an uncached DNS query provides stronger evidence
-> that forwarding is occurring over TLS.
-
-Press `Ctrl+C` to stop the packet capture.
-
----
+Expected: TCP traffic between the Technitium server and one or both AdGuard endpoints. With concurrent forwarding enabled, either or both may appear, and cached answers may produce no new upstream traffic. Press `Ctrl+C` to stop.
 
 ## Step 6 - Verify DNS Query Logging
 
-After configuring SQLite query logging in Part 3, generate a DNS query against each server from a client computer:
+After configuring SQLite query logging, generate a query against each server:
 
-```bash
-dig @192.168.xxx.xx example.com A  # Primary server IP
+```
+dig @192.168.XXX.XX example.com A      # Primary
+dig @192.168.XXX.XX example.com A      # Secondary
 ```
 
-```bash
-dig @192.168.xxx.xx example.com A  # Secondary server IP
+In each server's web interface open **Logs > Query Logs**, select the SQLite source, and confirm the request appears with the expected client IP, domain, timestamp, and response code. If `example.com` is intentionally blocked by policy, `NXDOMAIN` is expected; the purpose is to confirm the query is recorded.
+
+**Note:** The query-log databases are local to each server, so check each one. Record NOT TESTED for any server you have not verified.
+
+## Step 7 - Final Verification Checklist
+
+| Verification | Primary | Secondary |
+| --- | --- | --- |
+| Resolution over UDP | NOT TESTED | NOT TESTED |
+| Resolution over TCP | NOT TESTED | NOT TESTED |
+| Valid domain resolves | NOT TESTED | NOT TESTED |
+| Invalid DNSSEC domain rejected | NOT TESTED | PASS (Oct 19, 2026) |
+| DNS-over-TLS configuration reviewed | NOT TESTED | NOT TESTED |
+| Upstream TLS connectivity | NOT TESTED | NOT TESTED |
+| Forwarding traffic observed | NOT TESTED | NOT TESTED |
+| Test query appears in SQLite log | NOT TESTED | NOT TESTED |
+
+> **Important:** Use NOT TESTED for anything you have not performed. Never mark an untested item PASS.
+
+Record errors, unexpected responses, and configuration changes here:
+
+```
+(notes)
 ```
 
-Use the correct, different IP address for each server. In each server's Technitium web interface, open **Logs → Query Logs**, select the SQLite source, and confirm that the request appears with the expected client IP, domain, timestamp, and response code. If `example.com` is intentionally blocked by policy, its response may be `NXDOMAIN`; the purpose of this test is to verify that the query is recorded.
-
-**Note:** The primary and secondary query-log databases are local to each server; check each server separately. Record **NOT TESTED** for any server you have not yet verified.
-
----
-
-## Step 7 - Final DNS Verification Checklist
-
-After completing the tests, record the results.
-
-| Verification | Primary DNS | Secondary DNS |
-|---|---|---|
-| DNS resolution over UDP | PASS / FAIL | PASS / FAIL |
-| DNS resolution over TCP | PASS / FAIL | PASS / FAIL |
-| Valid domain resolves | PASS / FAIL | PASS / FAIL |
-| Invalid DNSSEC domain rejected | PASS / FAIL | PASS / FAIL |
-| DNS-over-TLS configuration reviewed | PASS / FAIL | PASS / FAIL |
-| Upstream TLS connectivity | PASS / FAIL | PASS / FAIL |
-| Forwarding traffic observed | PASS / FAIL | PASS / FAIL |
-
-> **Important:** Replace PASS / FAIL with the actual
-> test results. Use NOT TESTED for any verification
-> that has not been performed.
-
-**Logging verification:** Record whether each server's SQLite query log contains the test query from Step 6. Do not mark untested servers as PASS.
-
-### Verification Notes
-
-Record any errors, unexpected responses,
-or configuration changes discovered during testing.
-
-If DNS resolution fails, proceed to
-**Part 5 - Troubleshooting**.
-
----
+If DNS resolution fails, go to **Part 5 - Troubleshooting**.
 
 ## DNS Verification Complete
 
-After successfully completing the required tests,
-the following have been verified:
+When the required tests have passed and been recorded:
 
-- Both Technitium DNS servers resolve external domains.
-- DNS resolution works over UDP and TCP.
-- Valid DNS responses are returned.
+- Both servers resolve external domains over UDP and TCP.
 - Invalid DNSSEC data is rejected somewhere in the resolution path.
-- DNS-over-TLS forwarder settings have been reviewed.
-- Connectivity to the configured upstream DNS servers has been tested.
-- Forwarding traffic has been examined.
+- DNS-over-TLS forwarders are reviewed and reachable.
+- Forwarding traffic has been observed.
 
-**DNS verification is complete when the required tests
-have passed and their results have been recorded.**
-
-> **Next Step:** Continue to Part 5 - Troubleshooting
-> for information about diagnosing common
-> Technitium DNS problems.
+> **Next step:** Continue to Part 5 for common problems, then to [Technitium-DNS-Cluster-Setup.md](Technitium-DNS-Cluster-Setup.md).
 
 ---
 
 # Part 5 - Troubleshooting
 
-Use these procedures when a verification step fails. Run server-side commands
-on the affected Ubuntu host, and replace `192.168.xxx.xx` with that host's
-actual address. Record the original symptoms before changing settings.
+Use these procedures when a verification step fails. Run server-side commands on the affected Ubuntu host, and replace `192.168.XXX.XX` with that host's actual address. Record the original symptoms before changing settings.
 
 ---
 
 ## 1. Technitium Service Not Running
 
-Check service status and whether it is enabled at boot:
-
-```bash
+```
 sudo systemctl status dns.service
 systemctl is-enabled dns.service
 ```
 
-Expected: `active (running)` and `enabled`.
+Expected: `active (running)` and `enabled`. If stopped or disabled:
 
-If stopped, start the service; if disabled, enable it:
-
-```bash
+```
 sudo systemctl start dns.service
 sudo systemctl enable dns.service
 ```
 
 If startup fails, inspect recent logs:
 
-```bash
+```
 sudo journalctl -u dns.service -n 50 --no-pager
 ```
 
-Look for port conflicts, invalid configuration, permission problems, or
-startup errors. Diagnose the cause rather than repeatedly restarting.
+Look for port conflicts, invalid configuration, permission problems, or startup errors. Diagnose the cause rather than repeatedly restarting.
 
 ---
 
@@ -2373,36 +1371,30 @@ startup errors. Diagnose the cause rather than repeatedly restarting.
 
 From a separate client, query the affected server explicitly:
 
-```bash
-dig @192.168.xxx.xx google.com A
-dig +tcp @192.168.xxx.xx google.com A
+```
+dig @192.168.XXX.XX google.com A
+dig +tcp @192.168.XXX.XX google.com A
 ```
 
-A healthy response normally shows `status: NOERROR` and an `ANSWER SECTION`.
-If the request times out, verify service status and listening ports:
+A healthy response shows `status: NOERROR` and an `ANSWER SECTION`. If the request times out, verify the service and listening ports:
 
-```bash
+```
 sudo systemctl status dns.service
 sudo ss -tulpn | grep ':53 '
 sudo ufw status verbose
 ```
 
-Check that UDP **and** TCP port 53 are permitted from authorized clients,
-and review the gateway/VLAN firewall rules. If the server responds but
-external names do not resolve, inspect the forwarders in **Settings → Proxy &
-Forwarders** and review Technitium's query/log views.
+Check that UDP **and** TCP port 53 are permitted from authorized clients, and review the pfSense rules for that VLAN ([firewall-rules.md](firewall-rules.md)). If the server responds but external names do not resolve, inspect **Settings > Proxy & Forwarders** and review the query logs.
 
-> **Note:** `NOERROR` alone does not guarantee an address was returned;
-> check the `ANSWER SECTION` and the queried record type.
+> **Note:** `NOERROR` alone does not guarantee an address was returned; check the `ANSWER SECTION` and the queried record type.
 
 ---
 
 ## 3. DNSSEC Errors After Reboot / Raspberry Pi Clock Problems
 
-Incorrect system time can break DNSSEC validation and TLS certificate checks.
-On the Raspberry Pi, check the clock **before** manually restarting Chrony:
+Incorrect system time can break DNSSEC validation and TLS certificate checks. On the Raspberry Pi, check the clock **before** manually restarting Chrony:
 
-```bash
+```
 date
 timedatectl
 sudo systemctl status chrony
@@ -2410,82 +1402,61 @@ chronyc tracking
 chronyc sources -v
 ```
 
-Expected after synchronization: `System clock synchronized: yes`,
-`NTP service: active`, `Leap status: Normal`, and a selected source marked
-`^*`. Synchronization may take time after boot.
+Expected after synchronization: `System clock synchronized: yes`, `NTP service: active`, `Leap status: Normal`, and a selected source marked `^*`. Synchronization may take time after boot.
 
 If the clock does not synchronize:
 
-```bash
+```
 sudo journalctl -u chrony -n 50 --no-pager
 ```
 
-Check network reachability, NTP/NTS sources, and certificate errors. Refer to
-**Part 2 — Raspberry Pi 4 — Ubuntu Server Time Synchronization** for the
-optional bootstrap repair used in the original installation. The bootstrap
-sources are unauthenticated and should not be deployed automatically.
+Check network reachability, NTP/NTS sources, and certificate errors. See **[Part 2A - Raspberry Pi 4 Time Synchronization](#part-2a---raspberry-pi-4-time-synchronization-optional)** for the optional bootstrap repair used in the original installation. The bootstrap sources are unauthenticated and should not be deployed automatically.
 
-After time synchronization, retest normal DNS and the intentionally invalid
-DNSSEC test domain as described in Part 4.
+After the clock is correct, retest normal DNS and the invalid-DNSSEC domain (Part 4, Step 4).
 
 ---
 
 ## 4. Port 53 Not Responding
 
-Check which process owns DNS port 53:
-
-```bash
+```
 sudo ss -tulpn | grep ':53 '
 ```
 
-Technitium should listen on its configured IPv4/IPv6 addresses for UDP and
-TCP. If another process owns the required address/port, investigate possible
-conflicts with `systemd-resolved`, `dnsmasq`, BIND, or another DNS service.
+Technitium should listen on its configured IPv4/IPv6 addresses for UDP and TCP. If another process owns the port, investigate conflicts with `systemd-resolved`, `dnsmasq`, BIND, or another DNS service.
 
-> **Important:** `systemd-resolved` may use the loopback stub address
-> `127.0.0.53`. Do not disable it blindly; determine whether it actually
-> conflicts with Technitium and whether the host depends on it.
+> **Important:** `systemd-resolved` may use the loopback stub address `127.0.0.53`. Do not disable it blindly; determine whether it actually conflicts with Technitium and whether the host depends on it.
 
-If Technitium is listening but remote clients time out, review UFW and
-network firewall policies for UDP/TCP port 53.
+If Technitium is listening but remote clients time out, review UFW and the network firewall policies for UDP/TCP port 53.
 
 ---
 
 ## 5. Web Interface Not Accessible
 
-Check the service and the configured web management port (default HTTP 5380):
-
-```bash
+```
 sudo systemctl status dns.service
 sudo ss -tulpn | grep ':5380 '
 ```
 
-From another device, test network reachability if ICMP is allowed:
+From another device, test reachability if ICMP is allowed:
 
-```bash
-ping -c 4 192.168.xxx.xx
+```
+ping -c 4 192.168.XXX.XX
 ```
 
-A failed ping does **not** prove the web service is down; ICMP may be blocked.
-Review UFW and gateway policies for the actual management port. Restrict
-management access to trusted administration networks, and use HTTPS for
-ongoing administration rather than exposing HTTP management publicly.
+A failed ping does **not** prove the web service is down; ICMP may be blocked. Review UFW and the pfSense policies for the actual management port. Restrict management access to trusted networks, and use HTTPS for ongoing administration ([Maintenance-and-Hardening.md](Maintenance-and-Hardening.md)).
 
 ---
 
 ## 6. DNS-over-TLS Forwarding Problems
 
-This installation uses the AdGuard DNS-over-TLS endpoints:
-
 | Endpoint | IP address | TLS hostname | Port |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Primary upstream | `94.140.14.14` | `dns.adguard-dns.com` | TCP 853 |
 | Secondary upstream | `94.140.15.15` | `dns.adguard-dns.com` | TCP 853 |
 
-Verify the settings in **Settings → Proxy & Forwarders** on each server.
-Test certificate validation and outbound connectivity from the affected host:
+Verify **Settings > Proxy & Forwarders** on each server. Test certificate validation and outbound connectivity from the affected host:
 
-```bash
+```
 openssl s_client \
   -connect 94.140.14.14:853 \
   -servername dns.adguard-dns.com \
@@ -2493,59 +1464,45 @@ openssl s_client \
   -verify_return_error </dev/null
 ```
 
-Repeat with `94.140.15.15`. Look for `Verify return code: 0 (ok)`.
-If it fails, check time synchronization, internet routing, certificate
-validation, and outbound TCP 853 rules.
+Repeat with `94.140.15.15`. Look for `Verify return code: 0 (ok)`. If it fails, check time synchronization, internet routing, certificate validation, and outbound TCP 853 rules. A common cause is a pfSense reject rule for port 853 that also covers the DNS servers' own VLAN ([firewall-rules.md](firewall-rules.md), Section 3).
 
-> **Important:** A successful `openssl` test confirms TLS connectivity,
-> not that Technitium actually used that upstream for a particular query.
-> Use the packet capture procedure in Part 4 for stronger evidence.
+> **Important:** A successful `openssl` test confirms TLS connectivity, not that Technitium used that upstream for a given query. Use the packet-capture procedure in Part 4, Step 5.3.
 
 ---
 
 ## 7. One DNS Server Works but the Other Does Not
 
-Query each server **by its distinct address** from the same client:
+Query each server by its **distinct** address from the same client:
 
-```bash
-# Replace with the primary server's actual IP:
-dig @192.168.xxx.xxx google.com A
-
-# Replace with the secondary server's actual IP:
-dig @192.168.xxx.xxx google.com A
+```
+dig @192.168.XXX.XX google.com A      # Primary
+dig @192.168.XXX.XX google.com A      # Secondary
 ```
 
-On the failing server, verify the service, port 53, firewall, forwarders,
-clock, and logs. Remember that two working DNS servers are not automatically
-a Technitium cluster; clustering is documented separately.
+On the failing server, verify the service, port 53, firewall, forwarders, clock, and logs. Remember that two working DNS servers are not automatically a cluster ([Technitium-DNS-Cluster-Setup.md](Technitium-DNS-Cluster-Setup.md)). If they are clustered, compare the two nodes' settings and Advanced Blocking config.
 
 ---
 
 ## 8. TVs, Gaming Systems, Discord, or Other Apps Stop Working
 
-Earlier DNS enforcement testing caused connectivity problems on some devices.
-The precise causes of those issues were **not** established for this
-Technitium installation. Use evidence-based troubleshooting:
+Earlier DNS enforcement testing caused connectivity problems on some devices. The precise causes were **not** established for this installation, so troubleshoot with evidence:
 
 1. Confirm the device's assigned DNS servers and network/VLAN.
 2. Query the approved Technitium servers directly from a test client.
 3. Inspect Technitium query logs for failures or blocked domains.
-4. If Advanced Blocking is enabled, review the device's assigned policy.
-5. Inspect gateway firewall logs for DNS port 53, DoT port 853, and relevant
-   encrypted-DNS restrictions (including UDP 443 where applicable).
-6. Test a narrow, temporary exception only after identifying a legitimate
-   false positive; document the change and retest.
+4. If Advanced Blocking is enabled, review the device's assigned group ([AdvancedBlocking.md](AdvancedBlocking.md)).
+5. In pfSense, check **Status > System Logs > Firewall** for DNS (53), DoT (853), and DoH/QUIC (443, including UDP) rejects. Rules 5 and 6 in [firewall-rules.md](firewall-rules.md) are the usual suspects.
+6. Test a narrow, temporary exception only after identifying a legitimate false positive; document the change in the exceptions table and retest.
 
-> **Important:** Allowing a device to reach Technitium does not exempt it
-> from Technitium Advanced Blocking. Avoid broad bypass rules without evidence.
+> **Important:** Allowing a device to reach Technitium does not exempt it from Advanced Blocking. Avoid broad bypass rules without evidence.
 
 ---
 
 ## 9. Collect Diagnostic Information
 
-When an issue persists, capture relevant output before changing settings:
+Before changing settings, capture:
 
-```bash
+```
 hostnamectl
 ip -br addr
 ip route
@@ -2554,122 +1511,95 @@ sudo ss -tulpn
 sudo ufw status verbose
 timedatectl
 sudo journalctl -u dns.service -n 100 --no-pager
-dig @192.168.xxx.xx google.com A
+dig @192.168.XXX.XX google.com A
 ```
 
 On hosts using Chrony, also run:
 
-```bash
+```
 chronyc tracking
 chronyc sources -v
 ```
 
-Record the affected server, time, error messages, recent changes, and tests
-performed. **Redact credentials, sensitive hostnames, and private network
-information before sharing diagnostic output publicly.**
+Record the affected server, time, error messages, recent changes, and tests performed. **Redact credentials, sensitive hostnames, and private network information before sharing diagnostic output publicly.**
 
 ---
-## Troubleshooting — Identify Blocked DNS Queries
+
+## 10. Identify Blocked DNS Queries
 
 When a legitimate domain fails to resolve, Technitium Advanced Blocking may be responsible.
 
-### Step 1 — Review Query Logs
+### Step 1 - Review Query Logs
 
-Navigate to **Logs → Query Logs**.
+Navigate to **Logs > Query Logs** and locate the affected domain. Review the client IP, requested domain, query type, response code, and blocked status.
 
-Locate the affected domain and review:
+### Step 2 - Test DNS Resolution
 
-- Client IP address
-- Requested domain
-- Query type
-- Response code
-- Blocked status
-
-### Step 2 — Test DNS Resolution
-
-Run:
-
-```bash
-dig @192.168.xxx.xx example.com
 ```
-
-Replace the example IP with the appropriate Technitium server address.
+dig @192.168.XXX.XX example.com
+```
 
 A blocked response may include:
 
-```text
+```
 EDE: 15 (Blocked): (source=advanced-blocking-app; group=everyone else; domain=example.com)
 ```
 
-This identifies the blocking component and policy group, but does not necessarily identify the exact blocking list.
+This identifies the blocking component and policy group, but not necessarily the exact list.
 
-### Step 3 — Check Advanced Blocking
+### Step 3 - Check Advanced Blocking
 
-1. Navigate to **Apps → Advanced Blocking → Config**.
-2. Locate the affected policy group.
-3. Review the `blocked` array.
-4. Review the configured `blockListUrls`.
-5. Determine which rule or list matches the domain.
+1. Navigate to **Apps > Advanced Blocking > Config** (on the primary when clustered).
+2. Locate the affected group.
+3. Review the `blocked` array and the configured `blockListUrls`.
+4. Determine which rule or list matches the domain.
 
-For example, the following configuration explicitly blocks `example.com`:
+For example, this explicitly blocks `example.com`:
 
-```json
+```
 "allowed": [],
 "blocked": [
   "example.com"
 ]
 ```
 
-If this entry was added unintentionally, remove it:
+If it was added by mistake, remove it:
 
-```json
+```
 "allowed": [],
 "blocked": []
 ```
 
-**Important:** Preserve all other legitimate entries in the `blocked` array. Do not replace the entire array unless it contains no other domains.
+**Important:** Preserve other legitimate entries in the `blocked` array; only empty it if it contains no other domains. Save the configuration. If the domain still resolves as blocked, check the external lists and the custom lists in [AdvancedBlocking.md](AdvancedBlocking.md).
 
-Save the configuration.
+### Step 4 - Verify Resolution
 
-### Step 4 — Verify Resolution
-
-Run the DNS query again:
-
-```bash
-dig @192.168.xxx.xx example.com
+```
+dig @192.168.XXX.XX example.com
 ```
 
-Expected result, provided no other blocking rules apply:
+Expected, provided no other rule applies: `status: NOERROR` with an answer.
 
-```text
-status: NOERROR
-```
+### Recorded investigation
 
-The response should contain an appropriate DNS answer.
+This procedure was used to find a manually configured block for `example.com` in the Advanced Blocking group named `everyone else`. It shows how SQLite query logs, Extended DNS Errors (EDE), and the Advanced Blocking config work together to explain a blocked request.
 
-If the domain remains blocked, investigate the configured external blocklists and any additional Advanced Blocking rules.
-
-### Blocked-Domain Investigation Result
-
-This procedure was used to identify a manually configured block for `example.com` in the Advanced Blocking group named `everyone else`.
-
-The investigation demonstrated how SQLite Query Logs, DNS Extended Errors (EDE), and Advanced Blocking configuration can be used together to identify the cause of blocked DNS requests.
-
+---
 
 ## Troubleshooting Summary
 
 | Symptom | First checks |
-|---|---|
+| --- | --- |
 | Service stopped | `systemctl status dns.service`, journal logs |
-| DNS timeout | Port 53, UFW, gateway/VLAN firewall |
+| DNS timeout | Port 53, UFW, pfSense/VLAN rules |
 | DNSSEC error after reboot | Clock, Chrony, NTP/NTS sources |
 | Web interface inaccessible | Service, management port, firewall |
-| Upstream resolution fails | Forwarder settings, TCP 853, TLS certificate |
+| Upstream resolution fails | Forwarder settings, TCP 853, TLS certificate, pfSense reject rules |
 | Only one server fails | Test each IP and compare configurations |
-| TV/game/app problems | Client DNS, query logs, blocking policies |
+| TV/game/app problems | Client DNS, query logs, blocking policies, pfSense logs |
+| Cluster node Unreachable | [Technitium-DNS-Cluster-Setup.md](Technitium-DNS-Cluster-Setup.md), Section 7 |
 
-After correcting a problem, rerun the relevant tests in **Part 4** and
-record the actual results. Do not mark a test as PASS unless it was performed.
+After correcting a problem, rerun the relevant tests in **Part 4** and record the actual results. Do not mark a test as PASS unless it was performed.
 
 ---
 
@@ -2677,11 +1607,12 @@ record the actual results. Do not mark a test as PASS unless it was performed.
 
 - [Technitium DNS Server](https://technitium.com/dns/)
 - [Technitium DNS GitHub](https://github.com/TechnitiumSoftware/DnsServer)
+- [Technitium blog: Understanding Clustering and How to Configure It](https://blog.technitium.com/2025/11/understanding-clustering-and-how-to.html)
 - [Ubuntu Server](https://ubuntu.com/download/server)
 - [Raspberry Pi Documentation](https://www.raspberrypi.com/documentation/)
 - [Proxmox VE Documentation](https://pve.proxmox.com/pve-docs/)
 - [Ubuntu Chrony Time Synchronization](https://ubuntu.com/server/docs/how-to/networking/chrony-client/)
-- [Ubuntu Systemd-timesyncd Time Synchronization](https://ubuntu.com/server/docs/use-timedatectl-and-timesyncd/)
+- [Ubuntu systemd-timesyncd Time Synchronization](https://ubuntu.com/server/docs/use-timedatectl-and-timesyncd/)
 
 ---
 

@@ -1,194 +1,78 @@
 # Technitium DNS Security Configuration
 
-This repository contains configuration files, installation guides, and security documentation for implementing **Technitium DNS Server** in a home network environment.
+Configuration files, installation guides, and security documentation for running **Technitium DNS Server** as a filtered, redundant DNS service on a home network behind a pfSense firewall.
 
-The goal is to provide centralized DNS filtering, DNS redundancy, and network-level protection against unauthorized DNS services.
+Goals:
 
-The environment uses two Technitium DNS servers configured in a cluster, along with firewall rules to enforce DNS security across multiple network VLANs.
+1. **Centralized DNS filtering** with the Advanced Blocking app and lists maintained in this repository.
+2. **DNS redundancy** with two Technitium nodes in a cluster and clients configured with both addresses.
+3. **Restrict DNS bypass** (direct DNS, DNS-over-TLS, and common DNS-over-HTTPS resolvers) with pfSense firewall rules.
+4. **Keep devices working**: smart TVs, consoles, and gaming PCs are tested and given narrow exceptions only when needed.
+
+> **Placeholders:** IP addresses appear as `192.168.XXX.XX` and cluster names as `dns.MYDOMAIN.com`. Replace them with your own values. Never commit real credentials, certificates, or an unredacted pfSense `config.xml`.
 
 ---
 
-## DNS Infrastructure
+## Infrastructure
 
 | Component | Configuration |
-|---|---|
-| DNS Software | Technitium DNS Server |
-| Primary DNS | 192.168.XXX.XX |
-| Secondary DNS | 192.168.XXX.XX |
-| Primary Operating System | Ubuntu Server (Proxmox VM) |
-| Secondary Operating System | Ubuntu Server (Raspberry Pi 4) |
-| DNS Configuration | Technitium DNS Cluster |
-| DNS Filtering | Advanced Blocking App |
-| Network Firewall | UniFi Cloud Gateway Ultra |
+| --- | --- |
+| DNS software | Technitium DNS Server (clustered, primary + secondary) |
+| Primary node | Ubuntu Server VM on Proxmox |
+| Secondary node | Ubuntu Server on Raspberry Pi 4 |
+| DNS filtering | Advanced Blocking app (configured on the primary, synchronized by the cluster) |
+| Upstream DNS | AdGuard DNS over TLS (concurrent forwarding) |
+| Firewall / router / DHCP | pfSense on Netgate hardware |
 
-Both Technitium DNS servers operate as part of a cluster to synchronize supported DNS zones and configuration.
-
-**Important:** Technitium clustering does not automatically redirect DNS requests when a server becomes unavailable. DNS redundancy is achieved by configuring clients with both DNS server addresses through DHCP or another supported method.
+Clustering synchronizes configuration. **It does not redirect clients if a server fails.** Redundancy comes from handing out both DNS addresses through DHCP.
 
 ---
 
-## Repository Contents
+## Documentation
 
-### DNS Filtering Lists
+| File | What it covers |
+| --- | --- |
+| [HowToInstallTechnitium.md](HowToInstallTechnitium.md) | Installing both nodes, optional Raspberry Pi time-sync repair, initial configuration, DNS verification tests, troubleshooting |
+| [Technitium-DNS-Cluster-Setup.md](Technitium-DNS-Cluster-Setup.md) | Creating the cluster, certificate/DANE notes, sync checks, failover test, primary recovery |
+| [AdvancedBlocking.md](AdvancedBlocking.md) | Advanced Blocking app, client groups, list sources, verification |
+| [advanced-blocking-config.recommended.json](advanced-blocking-config.recommended.json) | Redacted copy of the intended Advanced Blocking config |
+| [pfSense-DHCP-and-DNS.md](pfSense-DHCP-and-DNS.md) | DHCP reservations, handing out both DNS servers, pfSense's own resolver |
+| [firewall-rules.md](firewall-rules.md) | pfSense aliases and rules that restrict DNS bypass |
+| [BackupAndRecovery.md](BackupAndRecovery.md) | What to back up, how to restore, recovery scenarios |
+| [Maintenance-and-Hardening.md](Maintenance-and-Hardening.md) | Updates, server firewall (UFW), HTTPS admin, SSH, routine checks |
 
-| File | Description |
-|---|---|
-| [blocklist.txt](blocklist.txt) | Custom DNS domain blocklist used by Technitium Advanced Blocking. |
-| [allowlist.txt](allowlist.txt) | Custom DNS allowlist for approved domains. |
-| [firefox-doh-blocklist.txt](firefox-doh-blocklist.txt) | DNS-over-HTTPS resolver domains used to help reduce browser DNS bypass. |
+### Lists
 
-### Installation and Configuration Guides
+| File | Purpose |
+| --- | --- |
+| [blocklist.txt](blocklist.txt) | Custom domain blocklist (dating, adult, social media, anonymity tools) |
+| [allowlist.txt](allowlist.txt) | Domains that must stay reachable |
+| [firefox-doh-blocklist.txt](firefox-doh-blocklist.txt) | DNS-over-HTTPS resolver hostnames and the Firefox DoH canary domain |
 
-| File | Description |
-|---|---|
-| [HowToInstallTechnitium.md](HowToInstallTechnitium.md) | Step-by-step instructions for installing Technitium DNS Server on Ubuntu Server (Proxmox VM) and Raspberry Pi 4. |
-| [Technitium-DNS-Cluster-Setup.md](Technitium-DNS-Cluster-Setup.md) | Instructions for configuring primary and secondary Technitium DNS servers in a cluster, including DNS records, TLSA/DANE validation, synchronization, and failover testing. |
-| [firewall-rules.md](firewall-rules.md) | Firewall configuration for enforcing approved DNS servers and restricting DNS bypass across network VLANs. |
-
----
-
-## Security Goals
-
-The primary security objectives of this project include:
-
-1. **Centralized DNS Filtering**
-   - Block unwanted or potentially malicious domains.
-   - Maintain custom blocklists and allowlists through GitHub.
-   - Apply consistent DNS filtering policies across network devices.
-
-2. **DNS Redundancy and Availability**
-   - Maintain primary and secondary Technitium DNS servers.
-   - Synchronize supported DNS zones and configuration through clustering.
-   - Allow clients to continue resolving DNS queries if one server becomes unavailable.
-
-3. **Prevent Unauthorized DNS Access**
-   - Restrict direct DNS requests to unauthorized external resolvers.
-   - Allow approved DNS traffic through designated Technitium servers.
-   - Apply DNS enforcement policies across multiple VLANs.
-
-4. **Restrict Encrypted DNS Bypass**
-   - Restrict unauthorized DNS-over-TLS (DoT) traffic.
-   - Reduce DNS-over-HTTPS (DoH) bypass through firewall rules and domain filtering.
-   - Prevent unauthorized DNS traffic where technically feasible.
-
-5. **Maintain Device Compatibility**
-   - Preserve connectivity for smart TVs, gaming consoles, and computers.
-   - Investigate DNS filtering issues before creating exceptions.
-   - Apply narrowly scoped firewall or DNS exceptions when necessary.
+The lists are loaded by the Advanced Blocking app straight from the raw GitHub URLs, so a commit to `main` takes effect at the next list refresh (24 hours). Protect the GitHub account with two-factor authentication.
 
 ---
 
-## Deployment
+## Recommended Order
 
-The following steps outline the general deployment process.
-
-### Step 1 — Install Technitium DNS Servers
-
-Install Technitium DNS Server on two systems:
-
-- Primary: Ubuntu Server running on Proxmox.
-- Secondary: Ubuntu Server running on Raspberry Pi 4.
-
-Follow the [Technitium Installation Guide](HowToInstallTechnitium.md).
-
-### Step 2 — Configure DNS Clustering
-
-Configure the two Technitium DNS servers as a cluster.
-
-This includes:
-
-- Initializing the cluster on the primary server.
-- Configuring the cluster domain and DNS records.
-- Configuring TLSA/DANE certificate validation.
-- Joining the secondary server.
-- Verifying cluster connectivity and synchronization.
-
-Follow the [Technitium DNS Cluster Setup Guide](Technitium-DNS-Cluster-Setup.md).
-
-### Step 3 — Configure DHCP DNS Servers
-
-Configure the network's DHCP settings to distribute both Technitium DNS server addresses to clients.
-
-This provides DNS redundancy if either server becomes unavailable.
-
-### Step 4 — Configure DNS Filtering
-
-Install and configure the Technitium Advanced Blocking App.
-
-Configure the following:
-
-- Custom domain blocklists.
-- Custom domain allowlists.
-- External DNS security blocklists.
-- DNS filtering groups and policies.
-- Automatic blocklist updates.
-
-### Step 5 — Configure Firewall Rules
-
-Configure firewall rules to:
-
-- Allow DNS traffic to approved Technitium servers.
-- Restrict unauthorized external DNS requests.
-- Restrict DNS-over-TLS traffic.
-- Reduce DNS-over-HTTPS bypass.
-- Apply DNS security policies across network VLANs.
-
-Refer to [Firewall Rules](firewall-rules.md).
-
-### Step 6 — Configure Device Exceptions
-
-Some devices and applications may require additional DNS or firewall considerations.
-
-Examples include:
-
-- Smart TVs
-- Gaming consoles
-- Gaming PCs
-- Communication applications
-
-Investigate DNS query logs and firewall logs before adding exceptions.
-
-### Step 7 — Verify DNS Resolution and Failover
-
-Verify that:
-
-- Both Technitium DNS servers respond to DNS queries.
-- Cluster synchronization is functioning.
-- DNS filtering works on both servers.
-- Unauthorized external DNS queries are restricted.
-- Clients continue resolving DNS when either server is unavailable.
-- TVs, gaming systems, and other applications function correctly.
+1. Install both nodes and configure the **primary** fully (forwarders, logging, Query Logs): [HowToInstallTechnitium.md](HowToInstallTechnitium.md). The secondary needs only the basics before joining, because joining overwrites its settings.
+2. Create DHCP reservations and hand out both DNS servers: [pfSense-DHCP-and-DNS.md](pfSense-DHCP-and-DNS.md).
+3. Build the cluster: [Technitium-DNS-Cluster-Setup.md](Technitium-DNS-Cluster-Setup.md).
+4. Configure filtering on the primary: [AdvancedBlocking.md](AdvancedBlocking.md).
+5. Add the pfSense bypass rules: [firewall-rules.md](firewall-rules.md).
+6. Set up backups: [BackupAndRecovery.md](BackupAndRecovery.md).
+7. Harden and schedule maintenance: [Maintenance-and-Hardening.md](Maintenance-and-Hardening.md).
+8. Test devices (TVs, consoles, gaming PCs) and record any exceptions.
 
 ---
 
 ## Important Notes
 
-### Firewall Configuration
+- **Firewall rules are applied by hand.** Technitium does not install or manage them. Review every rule before applying it to your network.
+- **Cluster changes happen on the primary.** Secondary nodes synchronize from it, and joining a cluster overwrites the secondary's local configuration.
+- **Bypass prevention is best effort.** VPNs, proxies, iCloud Private Relay, Tor, and unknown DoH servers may still get around DNS filtering and need additional controls.
+- **Query logs are sensitive.** They record which sites each device looks up. Keep retention short, restrict admin access, and do not publish logs.
 
-Firewall configurations documented in this repository are intended for manual implementation.
+## Testing Status
 
-**Firewall rules are not automatically installed or applied by Technitium DNS Server.**
-
-Review and adapt all firewall rules to match your network environment before deployment.
-
-### DNS Clustering
-
-Technitium clustering provides synchronization of supported configuration and DNS zones between cluster members.
-
-Clustering alone does not provide automatic client DNS failover.
-
-Clients should be configured with both DNS server addresses, or an appropriate highly available DNS endpoint.
-
-### DNS Security
-
-DNS filtering and firewall restrictions provide additional layers of network security but cannot guarantee that all DNS bypass methods are prevented.
-
-VPNs, proxies, encrypted DNS services, and other techniques may require additional network security controls.
-
----
-
-## Project Documentation
-
-This repository documents the installation, configuration, troubleshooting, and ongoing maintenance of a home network DNS security environment using Technitium DNS Server.
-
-Configuration examples should be reviewed and adjusted for individual network environments.
+Record real results in each guide's verification tables. A test that has not been run stays **NOT TESTED**. The DNS tests are defined once, in Part 4 of [HowToInstallTechnitium.md](HowToInstallTechnitium.md); the other guides refer back to them.

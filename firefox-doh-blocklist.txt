@@ -1,3 +1,16 @@
+# ==========================================
+# Browser DNS-over-HTTPS bypass hostnames
+# ==========================================
+# Loaded by the Advanced Blocking app. One domain per line.
+# Do NOT add the hostname of Technitium's own upstream resolver
+# (dns.adguard-dns.com); the servers need it for DNS-over-TLS.
+# ==========================================
+
+# Firefox canary domain
+# Returning NXDOMAIN for this name tells Firefox to turn off its built-in
+# DNS-over-HTTPS. It works because the config uses blockAsNxDomain.
+use-application-dns.net
+
 # Firefox DNS-over-HTTPS
 mozilla.cloudflare-dns.com
 firefox.dns.nextdns.io
@@ -5,6 +18,7 @@ firefox.dns.nextdns.io
 # Cloudflare
 cloudflare-dns.com
 one.one.one.one
+chrome.cloudflare-dns.com
 
 # Google
 dns.google
@@ -14,3 +28,17 @@ dns.quad9.net
 
 # NextDNS
 dns.nextdns.io
+
+# Other public DoH resolvers
+doh.opendns.com
+doh.cleanbrowsing.org
+dns.mullvad.net
+
+# ==========================================
+# OPTIONAL - disabled by default
+# iCloud Private Relay: Apple documents that returning NXDOMAIN for these
+# names makes devices report that Private Relay is unavailable instead of
+# silently routing around your DNS. Users may see a notice on their devices.
+# ==========================================
+# mask.icloud.com
+# mask-h2.icloud.com

@@ -1,5 +1,11 @@
-# Custom Technitium DNS Blocklist
-# Managed through GitHub
+# ==========================================
+# Technitium DNS - Custom Blocklist
+# ==========================================
+# Loaded by the Advanced Blocking app from the raw GitHub URL.
+# Format: one domain per line. Lines starting with # are comments.
+# Keep entries grouped by category and note why unusual entries exist.
+# Per-device blocks belong in the group's "blocked" array, not here.
+# ==========================================
 
 # Dating Apps
 grindr.com
@@ -15,6 +21,7 @@ match.com
 okcupid.com
 
 # Adult Content and Subscription Platforms
+# (broad adult coverage also comes from the StevenBlack list in the config)
 onlyfans.com
 fansly.com
 chaturbate.com
@@ -25,6 +32,8 @@ pornhub.com
 xhamster.com
 
 # Social Media and Messaging
+# Note: DNS blocking stops sites and apps that use these names. Apps that
+# connect by IP address or through other domains may still work.
 snapchat.com
 reddit.com
 instagram.com
@@ -41,12 +50,39 @@ ok.ru
 vk.com
 
 # Tor and Anonymity
-tor.com
+# Note: this only blocks the download pages. Tor itself connects by IP
+# address and needs firewall-level blocking (see firewall-rules.md).
 torproject.org
 tor-browser.en.softonic.com
 
 # Captive Portal
-fireoscaptiveportal.com  
+# TODO: add the reason this is blocked (which device, what it fixes)
+fireoscaptiveportal.com
 
-# Netgear Nighthawk MR60 Wifi. This stops the constant pinging
-netgear.com
+# ==========================================
+# OPTIONAL - disabled by default
+# Uncomment only after checking your query logs and testing the affected
+# devices. Each block can break related apps or sites.
+# ==========================================
+
+# Social media - other domains used by the same services
+# (confirm in the query logs while the app is running)
+# threads.com
+# tiktokv.com
+# tiktokcdn.com
+# cdninstagram.com
+# redd.it
+# redditmedia.com
+# redditstatic.com
+
+# VPN and proxy services (these also conflict with the Tailscale and
+# Twingate entries in the allowlist if you uncomment broad domains)
+# nordvpn.com
+# expressvpn.com
+# protonvpn.com
+# surfshark.com
+# windscribe.com
+# hide.me
+
+# Consider also loading a maintained DoH/VPN/Tor/proxy bypass list from the
+# Hagezi dns-blocklists project instead of maintaining your own VPN list.

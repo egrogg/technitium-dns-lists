@@ -1,177 +1,224 @@
-# Technitium DNS — Primary and Secondary Cluster Setup
+# Technitium DNS - Primary and Secondary Cluster Setup
 
-> Companion guide to `HowToInstallTechnitium.md`. This guide documents the clustering work completed in September–October 2026 and distinguishes verified results from steps that must be checked against the live configuration. It is not an export of the servers' settings.
+Companion guide to `HowToInstallTechnitium.md`.
 
-## 1. Overview
+This guide builds a two-node Technitium cluster: the primary runs on an Ubuntu Server VM in Proxmox and the secondary on a Raspberry Pi 4 with Ubuntu Server. It is based on the clustering work done in September-October 2026 and on Technitium's own clustering documentation. Menu labels can differ between Technitium versions, so confirm them in your installed version.
 
-This setup uses two Technitium DNS Server 15.4 instances. The primary runs on an Ubuntu Server VM in Proxmox; the secondary runs on a Raspberry Pi 4 with Ubuntu Server. Both can answer DNS queries. **Clustering synchronizes supported cluster data; it does not itself provide a floating DNS address or automatically reroute clients to the secondary.** Clients should be configured with both DNS server addresses.
+---
+
+## 1. What Clustering Does (and Does Not Do)
+
+- **It synchronizes configuration.** One node is the primary; secondaries pull configuration from it. Configuration changes are made **on the primary only**, and the primary has to be online for changes to happen.
+- **Each node still answers DNS on its own.** If the primary is offline, the secondary keeps serving DNS.
+- **It does not move clients between servers.** There is no floating IP. Clients must be given both DNS addresses by DHCP (see `pfSense-DHCP-and-DNS.md`).
+
+### What gets synchronized
+
+According to Technitium's documentation for joining a cluster, joining **overwrites** the secondary's local **Allowed, Blocked, Apps, Settings, and Administration** configuration with the primary's, and the secondary then keeps synchronizing from the primary.
+
+Practical consequences:
+
+- **Back up the secondary before joining.** Its existing settings are replaced.
+- **Make changes on the primary only.** Edits made on a secondary are overwritten.
+- **Apps and their configs (including Advanced Blocking) come from the primary.** See `AdvancedBlocking.md`.
+- **Query logs stay local.** Each node keeps its own SQLite query log.
+
+Confirm each of these in your own cluster (Section 6).
+
+---
+
+## 2. Example Settings
 
 | Setting | Primary | Secondary |
 | --- | --- | --- |
-| Role | Primary cluster node | Secondary cluster node |
-| Host | Ubuntu Server on Proxmox | Ubuntu Server on Raspberry Pi 4 |
-| Example LAN IP from this installation | `192.168.10.10` | `192.168.10.11` |
-| Technitium version at time of setup | 15.4 | 15.4 |
-| DNS service | TCP/UDP 53 | TCP/UDP 53 |
-| HTTP administration | TCP 5380 | TCP 5380 |
-| HTTPS administration / cluster communication | TCP 53443 | TCP 53443 |
+| Host | Ubuntu Server VM on Proxmox | Ubuntu Server on Raspberry Pi 4 |
+| Example LAN IP | `192.168.XXX.XX` | `192.168.XXX.XX` |
+| Technitium version at setup | 15.4 | 15.4 |
+| DNS | TCP/UDP 53 | TCP/UDP 53 |
+| HTTP admin | TCP 5380 | TCP 5380 |
+| HTTPS admin and cluster traffic | TCP 53443 | TCP 53443 |
 
-**Replace the example addresses and names before reusing these instructions.** The original notes used `dns.MYDOMAIN.com` as a cluster-domain placeholder, with `primary.dns.MYDOMAIN.com` and `secondary.dns.MYDOMAIN.com` as node names. Use your actual cluster names consistently.
+| Name | Example |
+| --- | --- |
+| Cluster domain | `dns.MYDOMAIN.com` |
+| Primary node name | `primary.dns.MYDOMAIN.com` |
+| Secondary node name | `secondary.dns.MYDOMAIN.com` |
 
-## 2. Prerequisites
+Use one set of names consistently. Each node's DNS server domain must be a subdomain of the cluster domain. Choose a name that is **not** already used as an authoritative zone elsewhere on your network; reusing an existing namespace is a common cause of cluster name-resolution and DANE errors.
 
-1. Complete the installation and initial configuration of Technitium on both machines using `HowToInstallTechnitium.md`.
-2. Give both servers stable LAN IP addresses and verify they can reach one another.
-3. Verify accurate time on both systems. This is especially important for DNSSEC and certificate validation. For the Raspberry Pi 4 Chrony setup and troubleshooting, see `HowToInstallTechnitium.md`.
-4. Ensure DNS resolution works independently on each server before clustering.
-5. Allow required management/cluster traffic **only between trusted management hosts and cluster nodes**. In the recorded setup, TCP 53443 initially worked locally but not remotely until the firewall was adjusted. Do not expose TCP 5380 or 53443 to the public internet.
-6. Have a current configuration backup or snapshot before changing cluster settings.
+---
 
-Useful preflight commands on both Ubuntu systems:
+## 3. Prerequisites
 
-```bash
+1. Both nodes installed and working independently (`HowToInstallTechnitium.md`).
+2. Stable IP addresses (DHCP reservations) and working connectivity between the nodes.
+3. Accurate time on both nodes (see the Raspberry Pi clock section in `HowToInstallTechnitium.md`).
+4. Both nodes on the same Technitium version.
+5. TCP 53443 allowed **between the two nodes** and from trusted admin hosts only. If the nodes are on different VLANs, add a pfSense rule for it. Do not expose 5380 or 53443 to the internet. See `Maintenance-and-Hardening.md` for UFW examples.
+6. A current backup of both nodes (`BackupAndRecovery.md`).
+7. Recommended: configure the web service with a valid HTTPS certificate on the primary **before** initializing the cluster (Settings > Web Service). Technitium recommends this so the secondary can authenticate the primary when it joins.
+
+Preflight on both nodes:
+
+```
 timedatectl
 sudo ss -lntup | grep -E ':(53|5380|53443)\b'
 sudo ufw status verbose
 ```
 
-From a trusted management machine, check that each node answers DNS:
+From an admin machine:
 
-```bash
-dig @192.168.xxx.xx example.com A
-dig @192.168.xxx.xx example.com A
+```
+dig @192.168.XXX.XX example.com A
+dig @192.168.XXX.XX example.com A
 ```
 
-## 3. Initialize the cluster on the primary
+---
 
-1. Sign in to the **primary** Technitium administration interface.
-2. Open the **Clustering** controls in the Technitium web interface. The exact menu labels can vary with Technitium version; verify them in your installed version.
-   - a. Administration > Cluster
-4. Choose **Initialize New Cluster**.
-5. Enter the intended cluster domain (the original notes used `dns.MYDOMAIN.com`).
-6. Supply the primary node name, using the naming scheme configured for your network.
-7. Review the certificate-validation options. **Use trusted certificate validation where possible.** Record the cluster domain, primary hostname, and any DNS records or certificate requirements shown by the interface.
-8. Finish initialization and confirm the primary shows as a connected primary cluster node.
+## 4. Initialize the Cluster on the Primary
 
-**Recorded result:** The primary cluster was initialized successfully. Cluster-related zones observed included `dns.MYDOMAIN.com` and `cluster-catalog.dns.MYDOMAIN.com` (placeholder names here).
+1. Sign in to the **primary** web interface.
+2. Go to **Administration > Cluster**.
+3. Choose **Initialize Cluster**.
+4. Enter the cluster domain (for example `dns.MYDOMAIN.com`).
+5. Enter the primary node's static IP address(es), the addresses other nodes use to reach it.
+6. Finish initialization and confirm the primary shows as the primary cluster node.
 
-## 4. Prepare cluster DNS and certificate validation
+Technitium creates the cluster domain as a primary zone and manages the **A, AAAA, and TLSA records for each node** in it. You normally do not create these records by hand.
 
-The original setup encountered a failed secondary join involving a DANE/TLSA lookup or certificate-validation error for the primary hostname on HTTPS port 53443.
+**Recorded result:** the primary initialized successfully, and the cluster zones appeared (for example `dns.MYDOMAIN.com` and a `cluster-catalog` zone).
 
-1. Verify that the **primary cluster hostname** resolves to the primary's correct IP address. In the example naming scheme, this is `primary.dns.MYDOMAIN.com` → `192.168.xxx.xx`.
-2. If using DANE validation, ensure the required TLSA record exists for the **actual cluster service name and port**, and that it matches the certificate/key material used by the HTTPS endpoint. A TLSA record for TCP port 53443 uses the owner-name pattern `_53443._tcp.primary.dns.MYDOMAIN.com`.
-   - a. Check > Zones > Type: TLSA : and ensure that record in in the zones file
-      - * Should have Name: _53443._tcp (Note: if there is a .ns1 after TCP in the name, remove)
-4. Check that the relevant DNS zone and DNSSEC validation chain are correct for your chosen DANE configuration. A DNS A record alone does **not** satisfy TLSA validation.
-5. Verify the primary's HTTPS service is reachable from the secondary, and that both clocks are accurate.
+---
 
-Example checks (substitute your real domain):
+## 5. Join the Secondary
 
-```bash
-dig @192.168.xxx.xx primary.dns.MYDOMAIN.com A
-dig @192.168.xxx.xx _53443._tcp.ns1.dnscluster.home TLSA
+1. Sign in to the **secondary** web interface.
+2. Go to **Administration > Cluster** and choose to initialize by **joining a cluster**.
+3. Enter the secondary node's IP address and the primary node's URL (shown on the primary's cluster screen).
+4. Enter the primary's administrator credentials (and two-factor code if enabled).
+5. Complete the join and check the cluster status on **both** nodes.
+
+### Certificate validation
+
+Technitium authenticates cluster nodes to each other with DANE-EE: the cluster creates a TLSA record for each node, and node-to-node TLS is validated against it. The **join** step is different, because the secondary has to trust the primary before any TLSA record is available to it.
+
+- Best: give the primary a valid HTTPS certificate before initializing the cluster, so the primary can be authenticated at join time.
+- Technitium documents the **Ignore Certificate Errors** option for joining when the primary uses a self-signed certificate on a private network.
+
+**Recorded history:** the first join failed with a DANE/TLSA validation or name-resolution error. The secondary was eventually joined with **Ignore Certificate Errors** enabled. The final certificate state was not independently confirmed in the original notes.
+
+What to verify now (instead of assuming the setup is fully authenticated):
+
+- [ ] Both nodes show **Connected** (not Unreachable) in the cluster status, and stay that way after a refresh and after a reboot of each node.
+- [ ] No DANE/TLSA errors appear in the cluster status or in the logs.
+- [ ] Each node can resolve the other's cluster name (Section 7, troubleshooting).
+- [ ] The primary's web service uses a certificate you chose on purpose (valid certificate, or a self-signed one you accepted knowingly). If you want to remove the self-signed trust assumption, install a valid certificate and review Technitium's cluster documentation for your version.
+
+If you created A or TLSA records by hand while troubleshooting, review them against what the cluster manages, since duplicates or mismatches can cause validation failures.
+
+---
+
+## 6. Validate the Cluster
+
+### 6.1 Status
+
+Open **Administration > Cluster** on each node. Both should be listed and connected.
+
+### 6.2 DNS on each node
+
+```
+dig @192.168.XXX.XX example.com A
+dig @192.168.XXX.XX example.com A
+dig @192.168.XXX.XX primary.dns.MYDOMAIN.com A
+dig @192.168.XXX.XX primary.dns.MYDOMAIN.com A
 ```
 
-**Historical workaround:** The supplied notes state the secondary was eventually joined with **Ignore Certificate Validation Errors** after DANE validation failed. This reduced authentication assurance and should **not** be treated as the recommended permanent setting. Revisit the live cluster configuration and establish validated TLS/PKI or DANE before considering this security issue resolved. Earlier troubleshooting also involved creating DNS A/TLSA records; the exact final validated certificate state was not independently confirmed in the notes.
+Use real names for your cluster. Query each server by its own address.
 
-## 5. Join the secondary node
+### 6.3 Configuration sync test
 
-1. Sign in to the **secondary** Technitium administration interface.
-2. Open the **Clustering** controls and choose **Join Cluster**.
-3. Enter the primary cluster hostname and required connection details from the primary's configuration.
-4. Choose the intended certificate-validation method. Prefer successful validation rather than bypassing errors.
-5. Complete the join and inspect the cluster status on **both** nodes.
-6. Confirm the primary shows connected and the secondary identifies itself as the secondary node.
-7. Confirm cluster-related zones and records are visible on the secondary.
+1. On the **primary**, add a harmless test entry (for example a test domain in the Blocked section).
+2. Wait for synchronization.
+3. On the **secondary**, confirm the entry appears.
+4. Remove the test entry on the primary and confirm it disappears from the secondary.
+5. Open **Apps > Advanced Blocking > Config** on both nodes and confirm they match.
 
-**Recorded result:** Both nodes joined the cluster and the secondary served replicated cluster records and recursive DNS responses. The exact UI labels and prompts were not preserved in the original notes, so confirm them while following this section.
+### 6.4 Ports
 
-## 6. Validate cluster operation
-
-### 6.1 Confirm cluster status
-
-In the Technitium web interface, inspect the cluster status on each node. Verify both nodes are listed and connected, and inspect the cluster-related zones/records on both servers.
-
-### 6.2 Test DNS independently on each node
-
-```bash
-dig @192.168.xxx.xx example.com A
-dig @192.168.xxx.xx example.com A
 ```
-
-For a record that is actually configured in your cluster zone, query **that exact name** against each server:
-
-```bash
-dig @192.168.xxx.xx primary.dns.MYDOMAIN.com A
-dig @192.168.xxx.xx primary.dns.MYDOMAIN.com A
-```
-
-Replace `MYDOMAIN.com` with your real domain. Do not use the old notes' `dns.dns.MYDOMAIN.com` test name unless that record truly exists.
-
-### 6.3 Verify firewall and listener state
-
-```bash
 sudo ss -lntup | grep -E ':(53|5380|53443)\b'
 sudo ufw status verbose
 ```
 
-If the secondary cannot join, verify that TCP 53443 is reachable **between cluster members**, then review name resolution, certificates, TLSA records, DNSSEC status, and system time.
-
-## 7. Configure clients and test failover
-
-Configure your DHCP/network settings to advertise **both** DNS addresses:
-
-```text
-Primary DNS:   192.168.xxx.xx
-Secondary DNS: 192.168.xxx.xx
-```
-
-A client using only the primary will not automatically discover the secondary simply because the servers are clustered. Clients and operating systems may use multiple configured resolvers differently; some may use either server even while both are healthy.
-
-**Controlled failover test:**
-
-1. Verify both servers resolve a test domain individually.
-2. Confirm a test client has both DNS addresses assigned (`resolvectl status` on Ubuntu, or `ipconfig /all` on Windows).
-3. During a maintenance window, stop the primary DNS service or otherwise make the primary unavailable to the test client.
-4. Confirm the primary no longer answers and the secondary still does.
-5. From the **client**, test ordinary name resolution and browsing without explicitly targeting the secondary in the command. This is what verifies client failover behavior.
-6. Restore the primary and confirm it rejoins and answers queries.
-
-```bash
-# Run from a trusted client; explicit queries verify server availability.
-dig @192.168.xxx.xx example.com A
-dig @192.168.xxx.xx example.com A
-
-# This tests the client's normal resolver selection.
-dig example.com A
-```
-
-**Recorded test:** The original notes say the primary was disabled, the secondary still answered direct `dig` queries, and web browsing continued. This supports successful operation in that test, but does not guarantee identical failover behavior for every client or VLAN.
-
-## 8. Troubleshooting reference
-
-| Symptom | Check |
-| --- | --- |
-| Secondary cannot join | Primary hostname resolution, TCP 53443 connectivity, cluster settings, TLS certificate validation |
-| DANE/TLSA validation error | TLSA owner name and contents, certificate/key match, DNSSEC chain, accurate clocks |
-| `Signature Not Yet Valid` or DNSSEC `SERVFAIL` on Pi | See the Raspberry Pi 4 time synchronization section in `HowToInstallTechnitium.md`; check DNSSEC status |
-| Primary works, secondary does not answer | Secondary service and firewall, DNS listening addresses, cluster status |
-| Secondary answers direct `dig` but clients fail when primary is down | DHCP-advertised DNS addresses and each client's resolver selection |
-| Cluster records not visible on secondary | Cluster status and synchronization; inspect logs before changing records |
-
-## 9. Security and remaining checks
-
-- [ ] Confirm the live cluster uses **validated** certificates rather than permanently ignoring certificate errors.
-- [ ] Confirm the exact production cluster domain, node hostnames, and TLSA records.
-- [ ] Limit admin/cluster ports to trusted IP addresses; do not expose them publicly.
-- [ ] Verify both nodes have accurate time; see `HowToInstallTechnitium.md` for the Raspberry Pi 4 fix.
-- [ ] Confirm cluster synchronization and recursive DNS operation on both nodes.
-- [ ] Confirm DHCP advertises both DNS servers on every intended VLAN.
-- [ ] Test client failover from representative Windows, Linux, and other devices.
-- [ ] Document Advanced Blocking separately; an app or its settings should not be assumed synchronized without checking both nodes.
-- [ ] Document firewall-based DNS bypass prevention separately; do not assume that cluster membership enforces client DNS routing.
+| Verification | Primary | Secondary |
+| --- | --- | --- |
+| Cluster status Connected | NOT TESTED | NOT TESTED |
+| DNS answers over UDP and TCP | NOT TESTED | NOT TESTED |
+| Config change syncs from primary | n/a | NOT TESTED |
+| Advanced Blocking config matches | NOT TESTED | NOT TESTED |
+| Survives a reboot of each node | NOT TESTED | NOT TESTED |
 
 ---
 
-*Based on historical installation notes last documented October 12, 2026. Review against the live Technitium 15.4 interfaces before publishing as a universally reproducible procedure.*
+## 7. Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| Secondary cannot join | Primary URL and port 53443 reachability, admin credentials, time on both nodes, certificate options |
+| DANE/TLSA validation error | Each node can resolve the cluster names, TLSA records for the nodes exist and match, clocks are correct |
+| "Cannot resolve cluster name" | The node's DNS server domain is a subdomain of the cluster domain, and the cluster domain is not shadowed by another zone or forwarder |
+| Node shows Unreachable | Connectivity on 53443, firewall rules between nodes, name resolution, time |
+| `Signature Not Yet Valid` or DNSSEC SERVFAIL on the Pi | Raspberry Pi time synchronization section in `HowToInstallTechnitium.md` |
+| Secondary answers but clients fail when primary is down | The DHCP-advertised DNS addresses and each client's resolver behavior |
+| Config changes disappear on a secondary | They were made on the secondary; make changes on the primary |
+
+Name-resolution checks:
+
+```
+dig @192.168.XXX.XX primary.dns.MYDOMAIN.com A
+dig @192.168.XXX.XX secondary.dns.MYDOMAIN.com A
+```
+
+Run each against both nodes.
+
+---
+
+## 8. Clients and Failover Test
+
+Hand out **both** addresses through DHCP (`pfSense-DHCP-and-DNS.md`). A client using only the primary does not discover the secondary just because the servers are clustered, and clients differ in how they use multiple resolvers.
+
+Controlled test:
+
+1. Confirm both servers resolve a test domain.
+2. Confirm a test client has both DNS addresses (`resolvectl status` on Linux, `ipconfig /all` on Windows).
+3. In a maintenance window, stop the DNS service on the primary.
+4. From the client, run `dig example.com A` **without** naming a server. This tests the client's own failover.
+5. Confirm browsing still works.
+6. Restore the primary and confirm it reconnects.
+
+**Recorded test:** the primary was disabled, the secondary still answered direct `dig` queries, and browsing continued. This does not guarantee identical failover on every client or VLAN, so repeat the test from a representative device on each VLAN.
+
+---
+
+## 9. If the Primary Is Lost
+
+- The secondary keeps answering DNS, but configuration cannot be changed while the primary is down.
+- Technitium provides an option to promote a secondary to primary when the primary is offline and unrecoverable. Use it only in that case and read Technitium's current documentation first.
+- After a rebuild, a replacement node joins as a secondary and receives its configuration from the cluster.
+
+See `BackupAndRecovery.md` for the full recovery scenarios.
+
+---
+
+## 10. Remaining Checks
+
+- [ ] Both nodes stay Connected after reboot and after a refresh.
+- [ ] The primary web service uses a certificate you chose deliberately.
+- [ ] Config and Advanced Blocking changes on the primary appear on the secondary.
+- [ ] TCP 53443 is limited to the cluster peers and trusted admin hosts.
+- [ ] Both nodes have accurate time.
+- [ ] DHCP advertises both servers on every client VLAN.
+- [ ] Failover tested from a representative client on each VLAN.
+- [ ] Backups of both nodes exist and a restore has been tested.
+
+*Based on installation notes from September-October 2026 and Technitium's clustering documentation. Review against the live Technitium 15.4 interface before treating this as a universal procedure.*
