@@ -4,7 +4,7 @@ Companion guide to `HowToInstallTechnitium.md` and `Technitium-DNS-Cluster-Setup
 
 This guide documents DNS filtering with the **Advanced Blocking** app: how to install it, what the configuration does, which block and allow lists it loads, and how to verify it.
 
-> **Note:** The configuration here is the *intended* configuration. It is based on the live primary config with a few cleanups (see Section 9). A redacted copy is in `advanced-blocking-config.recommended.json`. Private IP addresses are replaced with placeholders. Re-export the config after any change so this document does not drift from the running setup.
+> **Note:** The full configuration lives in one place: [advanced-blocking-config.json](advanced-blocking-config.json). This document explains it and does not repeat it, so the two cannot drift apart. The JSON file is based on the live primary config with a few cleanups (Section 9), and private IP addresses are replaced with placeholders. After any change, export the config from Technitium and replace that file.
 
 ---
 
@@ -47,70 +47,38 @@ If a node is **not** in a cluster, repeat these steps on that node.
 
 ## 3. Configuration
 
-Replace `192.168.XXX.XX` with the IP address of the client that belongs in `netgear-restricted`. That client needs a DHCP reservation so its address does not change (`pfSense-DHCP-and-DNS.md`).
+The complete configuration is in [advanced-blocking-config.json](advanced-blocking-config.json).
+
+To apply it:
+
+1. Open the file and replace `192.168.XXX.XX` in `networkGroupMap` with the IP address of the client that belongs in `netgear-restricted`. That client needs a DHCP reservation so its address does not change (`pfSense-DHCP-and-DNS.md`).
+2. In the Technitium web interface open **Apps > Advanced Blocking > Config** on the **primary**.
+3. Paste the edited JSON and click **Save**.
+
+Do not commit the version containing your real IP address to the repository; keep the placeholder there.
+
+### Structure at a glance
+
+The file has two parts: a map from clients to groups, and the groups themselves.
 
 ```json
 {
   "enableBlocking": true,
-  "blockingAnswerTtl": 30,
+  "blockAsNxDomain": true,
   "blockListUrlUpdateIntervalHours": 24,
-  "blockListUrlUpdateIntervalMinutes": 0,
-  "localEndPointGroupMap": {},
   "networkGroupMap": {
     "192.168.XXX.XX": "netgear-restricted",
     "0.0.0.0/0": "everyone else",
     "[::]/0": "everyone else"
   },
   "groups": [
-    {
-      "name": "everyone else",
-      "enableBlocking": true,
-      "allowTxtBlockingReport": true,
-      "blockAsNxDomain": true,
-      "blockingAddresses": ["0.0.0.0", "::"],
-      "allowed": [],
-      "blocked": [],
-      "allowListUrls": [
-        "https://raw.githubusercontent.com/egrogg/technitium-dns-lists/main/allowlist.txt"
-      ],
-      "blockListUrls": [
-        "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt",
-        "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts",
-        "https://raw.githubusercontent.com/egrogg/technitium-dns-lists/main/firefox-doh-blocklist.txt",
-        "https://raw.githubusercontent.com/egrogg/technitium-dns-lists/main/blocklist.txt"
-      ],
-      "allowedRegex": [],
-      "blockedRegex": [],
-      "regexAllowListUrls": [],
-      "regexBlockListUrls": [],
-      "adblockListUrls": []
-    },
-    {
-      "name": "netgear-restricted",
-      "enableBlocking": true,
-      "allowTxtBlockingReport": true,
-      "blockAsNxDomain": true,
-      "blockingAddresses": ["0.0.0.0", "::"],
-      "allowed": [],
-      "blocked": ["netgear.com"],
-      "allowListUrls": [
-        "https://raw.githubusercontent.com/egrogg/technitium-dns-lists/main/allowlist.txt"
-      ],
-      "blockListUrls": [
-        "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt",
-        "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts",
-        "https://raw.githubusercontent.com/egrogg/technitium-dns-lists/main/firefox-doh-blocklist.txt",
-        "https://raw.githubusercontent.com/egrogg/technitium-dns-lists/main/blocklist.txt"
-      ],
-      "allowedRegex": [],
-      "blockedRegex": [],
-      "regexAllowListUrls": [],
-      "regexBlockListUrls": [],
-      "adblockListUrls": []
-    }
+    { "name": "everyone else",      "blocked": [],              "allowListUrls": [...], "blockListUrls": [...] },
+    { "name": "netgear-restricted", "blocked": ["netgear.com"], "allowListUrls": [...], "blockListUrls": [...] }
   ]
 }
 ```
+
+This excerpt is abbreviated and not valid to paste. Use the full file. Sections 4 to 6 explain each part.
 
 ---
 
@@ -209,7 +177,7 @@ Replace NOT TESTED with PASS or FAIL after running each test.
 - **Block something for everyone:** add it to `blocklist.txt` under the right heading.
 - **Block something for one device or group:** use that group's `blocked` array in the config, on the primary.
 - **Find out why a site is blocked:** see Troubleshooting - Identify Blocked DNS Queries in `HowToInstallTechnitium.md`.
-- **After any config change:** export the config and update `advanced-blocking-config.recommended.json`.
+- **After any config change:** export the config from Technitium, restore the placeholder IP, and replace `advanced-blocking-config.json` in the repository.
 
 ---
 

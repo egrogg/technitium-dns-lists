@@ -35,7 +35,7 @@ Clustering synchronizes configuration. **It does not redirect clients if a serve
 | [HowToInstallTechnitium.md](HowToInstallTechnitium.md) | Installing both nodes, optional Raspberry Pi time-sync repair, initial configuration, DNS verification tests, troubleshooting |
 | [Technitium-DNS-Cluster-Setup.md](Technitium-DNS-Cluster-Setup.md) | Creating the cluster, certificate/DANE notes, sync checks, failover test, primary recovery |
 | [AdvancedBlocking.md](AdvancedBlocking.md) | Advanced Blocking app, client groups, list sources, verification |
-| [advanced-blocking-config.recommended.json](advanced-blocking-config.recommended.json) | Redacted copy of the intended Advanced Blocking config |
+| [advanced-blocking-config.json](advanced-blocking-config.json) | The Advanced Blocking config (source of truth; IP redacted) |
 | [pfSense-DHCP-and-DNS.md](pfSense-DHCP-and-DNS.md) | DHCP reservations, handing out both DNS servers, pfSense's own resolver |
 | [firewall-rules.md](firewall-rules.md) | pfSense aliases and rules that restrict DNS bypass |
 | [BackupAndRecovery.md](BackupAndRecovery.md) | What to back up, how to restore, recovery scenarios |

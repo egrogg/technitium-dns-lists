@@ -77,7 +77,7 @@ Then enable **QEMU Guest Agent** under the VM's Options.
 | Both DNS servers down | Clients lose DNS | Use the emergency steps in Section 6, then rebuild the primary first. |
 | pfSense lost | No routing or DHCP | Restore `config.xml` to replacement hardware. |
 | Bad list change on GitHub | Sites wrongly blocked or allowed | Revert the commit, wait for the next list refresh (24 hours) or re-save the Advanced Blocking config on the primary. |
-| Bad Advanced Blocking config | Filtering wrong or off | Re-apply `advanced-blocking-config.recommended.json` on the primary. |
+| Bad Advanced Blocking config | Filtering wrong or off | Re-apply `advanced-blocking-config.json` on the primary. |
 
 ---
 

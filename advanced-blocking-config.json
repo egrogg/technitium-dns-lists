@@ -1,0 +1,68 @@
+{
+  "enableBlocking": true,
+  "blockingAnswerTtl": 30,
+  "blockListUrlUpdateIntervalHours": 24,
+  "blockListUrlUpdateIntervalMinutes": 0,
+  "localEndPointGroupMap": {},
+  "networkGroupMap": {
+    "192.168.XXX.XX": "netgear-restricted",
+    "0.0.0.0/0": "everyone else",
+    "[::]/0": "everyone else"
+  },
+  "groups": [
+    {
+      "name": "everyone else",
+      "enableBlocking": true,
+      "allowTxtBlockingReport": true,
+      "blockAsNxDomain": true,
+      "blockingAddresses": [
+        "0.0.0.0",
+        "::"
+      ],
+      "allowed": [],
+      "blocked": [],
+      "allowListUrls": [
+        "https://raw.githubusercontent.com/egrogg/technitium-dns-lists/main/allowlist.txt"
+      ],
+      "blockListUrls": [
+        "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt",
+        "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts",
+        "https://raw.githubusercontent.com/egrogg/technitium-dns-lists/main/firefox-doh-blocklist.txt",
+        "https://raw.githubusercontent.com/egrogg/technitium-dns-lists/main/blocklist.txt"
+      ],
+      "allowedRegex": [],
+      "blockedRegex": [],
+      "regexAllowListUrls": [],
+      "regexBlockListUrls": [],
+      "adblockListUrls": []
+    },
+    {
+      "name": "netgear-restricted",
+      "enableBlocking": true,
+      "allowTxtBlockingReport": true,
+      "blockAsNxDomain": true,
+      "blockingAddresses": [
+        "0.0.0.0",
+        "::"
+      ],
+      "allowed": [],
+      "blocked": [
+        "netgear.com"
+      ],
+      "allowListUrls": [
+        "https://raw.githubusercontent.com/egrogg/technitium-dns-lists/main/allowlist.txt"
+      ],
+      "blockListUrls": [
+        "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt",
+        "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts",
+        "https://raw.githubusercontent.com/egrogg/technitium-dns-lists/main/firefox-doh-blocklist.txt",
+        "https://raw.githubusercontent.com/egrogg/technitium-dns-lists/main/blocklist.txt"
+      ],
+      "allowedRegex": [],
+      "blockedRegex": [],
+      "regexAllowListUrls": [],
+      "regexBlockListUrls": [],
+      "adblockListUrls": []
+    }
+  ]
+}
