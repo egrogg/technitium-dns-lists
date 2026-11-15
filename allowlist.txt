@@ -20,3 +20,7 @@ ubuntu.com
 
 # Malware Scanning
 avast.com
+
+# Games
+tracking.overwolf.com
+overwolf.com
