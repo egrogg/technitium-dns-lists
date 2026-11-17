@@ -62,6 +62,7 @@ Step-by-step pfSense instructions, including handing out both DNS servers to cli
 - [Part 3 - Initial Technitium Configuration](#part-3---initial-technitium-configuration)
 - [Part 4 - Verify DNS Resolution](#part-4---verify-dns-resolution)
 - [Part 5 - Troubleshooting](#part-5---troubleshooting)
+- [Part 6 - Tested Ubuntu Security Configuration](#part-6---tested-ubuntu-security-configuration)
 
 ---
 
@@ -1600,6 +1601,323 @@ This procedure was used to find a manually configured block for `example.com` in
 | Cluster node Unreachable | [Technitium-DNS-Cluster-Setup.md](Technitium-DNS-Cluster-Setup.md), Section 7 |
 
 After correcting a problem, rerun the relevant tests in **Part 4** and record the actual results. Do not mark a test as PASS unless it was performed.
+
+---
+
+# Part 6 - Tested Ubuntu Security Configuration
+
+This section documents security work completed **November 16, 2026** on a **standalone Proxmox Ubuntu test server**, `test-technitium-github-setup` (`192.168.xxx.xx`), running **Technitium DNS Server v15.6.2**. It is **not** the production primary/secondary cluster. Replace the example IPs, username, interface, and key name for a new deployment. Do not copy these addresses blindly.
+
+## Step 1 - Record the Test Environment
+
+| Component | Verified value |
+| --- | --- |
+| Ubuntu Technitium test host | `192.168.xxx.xx` |
+| SSH management desktop | `192.168.xxx.xx` |
+| Authorized DNS client subnet | `192.168.xxx.0/24` |
+| Wazuh manager | `192.168.xxx.xx` |
+| Technitium version | `15.6.2` |
+| Technitium service | `dns.service` |
+| Technitium application | `/opt/technitium/dns` |
+| Technitium configuration | `/etc/dns` |
+| SSH username | `username` |
+
+> **Scope:** This host is standalone and may join a **different future cluster**. Do not add a cluster-peer firewall rule until its actual peer address and requirements are known. The original guide's production primary/secondary test results remain unchanged.
+
+## Step 2 - Configure UFW Without Losing SSH
+
+**Before enabling UFW**, identify the IP address of your active SSH client and keep that SSH session open:
+
+```bash
+echo "$SSH_CONNECTION"
+sudo ss -tulpen
+sudo ufw status numbered
+grep '^DEFAULT_' /etc/default/ufw
+```
+
+The test host used default **deny incoming** and **allow outgoing**. Confirm your actual management address and DNS client networks before using these commands:
+
+```bash
+# Inbound SSH only from the management desktop
+sudo ufw allow from 192.168.xxx.xx to any port 22 proto tcp comment 'Management SSH'
+
+# Inbound DNS from the authorized LAN
+sudo ufw allow from 192.168.xxx.0/24 to any port 53 proto udp comment 'Technitium DNS UDP'
+sudo ufw allow from 192.168.xxx.0/24 to any port 53 proto tcp comment 'Technitium DNS TCP'
+
+# Outbound Wazuh agent communication
+sudo ufw allow out to 192.168.xxx.xx port 1514 proto tcp comment 'Wazuh Agent Communication'
+
+# Explicit outbound resolver permissions (redundant with allow-outgoing default)
+sudo ufw allow out 53/udp comment 'Outbound DNS UDP'
+sudo ufw allow out 53/tcp comment 'Outbound DNS TCP'
+sudo ufw allow out 853/tcp comment 'Outbound DNS over TLS'
+
+# Reproduces the tested HTTP web-management access rule
+sudo ufw allow 5380/tcp comment 'Technitium Web Management'
+```
+
+> **Security warning:** The last command permits HTTP management on TCP 5380 from **any source that can route to the host**, including IPv6 where enabled. This matched the tested configuration at the user's request, but is **not recommended as a hardened default**. Prefer a management subnet or single trusted management IP, and use HTTPS for administration. For a new deployment, use instead: `sudo ufw allow from 192.168.xxx.xx to any port 5380 proto tcp comment 'Technitium Web Management'` (adjust the IP). Do not expose either administrative port directly to the internet.
+
+> **Port clarification:** On the tested v15.6.2 host, TCP **5380** was the HTTP Web UI and TCP **53443** was the HTTPS Web UI. **53443 is not exclusively a cluster port.** It was listening but **not opened in UFW** during this test. If you enable remote HTTPS management, restrict its inbound firewall rule to trusted administrators and verify the configured certificate. See [Maintenance-and-Hardening.md](Maintenance-and-Hardening.md).
+
+Verify the DHCP client exception before enabling UFW (important if the host receives a pfSense DHCP reservation):
+
+```bash
+sudo grep -nE '67|68|dhcp' /etc/ufw/before.rules
+```
+
+The tested host had a rule permitting DHCP replies from UDP source port 67 to destination port 68. Then enable and inspect UFW:
+
+```bash
+sudo ufw enable
+sudo ufw status verbose
+sudo ufw status numbered
+```
+
+Expected defaults: `deny (incoming), allow (outgoing)`. **Keep the existing SSH connection open** until a separate new SSH session succeeds. Because the outbound policy allows traffic by default, the explicit outbound rules are descriptive rather than restrictions; to restrict outbound access, design and test a separate egress policy.
+
+### Verify firewall behavior
+
+From an authorized LAN client:
+
+```bash
+dig @192.168.xxx.xx google.com A
+dig @192.168.xxx.xx google.com A +tcp
+ssh username@192.168.xxx.xx
+```
+
+On the Technitium host:
+
+```bash
+sudo systemctl status dns.service --no-pager
+sudo systemctl status wazuh-agent --no-pager
+sudo ss -tnp | grep '192.168.xxx.xx:1514'
+sudo ufw status verbose
+```
+
+The Wazuh socket should show `ESTAB` to `192.168.xxx.xx:1514`. An old "connected" log entry alone does not establish that the agent is currently connected.
+
+## Step 3 - Confirm DNS-over-TLS Upstreams
+
+In **Technitium > Settings > Proxy & Forwarders**, the tested configuration used:
+
+| Setting | Value |
+| --- | --- |
+| Forwarder 1 | `dns.adguard-dns.com (94.140.14.14:853)` |
+| Forwarder 2 | `dns.adguard-dns.com (94.140.15.15:853)` |
+| Forwarder protocol | DNS-over-TLS |
+| Concurrent forwarding | Enabled |
+| Forwarder concurrency | 2 |
+
+From the Technitium host, verify TLS reachability and the certificate hostname for **each** upstream:
+
+```bash
+openssl s_client -connect 94.140.14.14:853 \
+  -servername dns.adguard-dns.com \
+  -verify_hostname dns.adguard-dns.com \
+  -verify_return_error </dev/null
+
+openssl s_client -connect 94.140.15.15:853 \
+  -servername dns.adguard-dns.com \
+  -verify_hostname dns.adguard-dns.com \
+  -verify_return_error </dev/null
+```
+
+Look for `Verify return code: 0 (ok)`. An empty result from `sudo ss -tnp | grep ':853'` is **not** proof of failure; connections may be short-lived or absent while responses are cached.
+
+**Separate uncompleted verification:** These TLS tests verify reachability and certificate validation, **not** that Technitium actually forwarded a DNS query over TLS. To observe real forwarding, follow **Part 4, Step 5.3** (`tcpdump` during an uncached lookup). Mark that specific check **NOT TESTED** until performed.
+
+## Step 4 - Recover a Forgotten Technitium Web UI Password
+
+The following procedure was used successfully on **Technitium v15.6.2**. It temporarily interrupts DNS service and may affect authentication state. Use console/SSH access and back up the file first. Do **not** publish `auth.config`, backups, or credentials.
+
+1. Identify the actual service configuration directory:
+
+   ```bash
+   sudo systemctl cat dns.service
+   ```
+
+   The tested service ran `DnsServerApp.dll /etc/dns` as user `dns-server`.
+
+2. Back up authentication data, preserving ownership and permissions:
+
+   ```bash
+   sudo cp -a /etc/dns/auth.config /etc/dns/auth.config.bak
+   sudo ls -l /etc/dns/auth.config*
+   ```
+
+3. Stop Technitium and confirm it is inactive:
+
+   ```bash
+   sudo systemctl stop dns.service
+   sudo systemctl is-active dns.service
+   ```
+
+   Expected: `inactive`.
+
+4. Rename the authentication configuration as directed by the **password-recovery instructions displayed on the Technitium login screen**:
+
+   ```bash
+   sudo mv /etc/dns/auth.config /etc/dns/resetadmin.config
+   sudo ls -l /etc/dns/resetadmin.config /etc/dns/auth.config.bak
+   ```
+
+5. Restart and verify service:
+
+   ```bash
+   sudo systemctl start dns.service
+   sudo systemctl status dns.service --no-pager
+   ```
+
+6. Refresh the Web UI, follow the recovery/login flow, and **immediately set a strong, unique administrator password**. Verify a fresh login. If 2FA was reset, re-enroll it. Review all accounts and permissions afterward. Keep the backup protected; do not blindly restore it over the recovered configuration.
+
+> **Tested outcome:** Administrator Web UI access was restored on `192.168.xxx.xx`. This is a recovery procedure, not a routine installation step.
+
+## Step 5 - Configure a Dedicated SSH Key and Disable Password Logins
+
+**Perform this from the Ubuntu management desktop**, not on the server, so the private key remains on the client. Substitute your own username, server IP, and key filename.
+
+### Generate a dedicated Ed25519 key
+
+```bash
+ssh-keygen -t ed25519 -a 100 \
+  -f ~/.ssh/id_ed25519_technitium \
+  -C "technitium-192.168.xxx.xx"
+```
+
+Use a strong private-key passphrase. If the key file already exists, **do not overwrite it**.
+
+### Install only the public key
+
+```bash
+ssh-copy-id -i ~/.ssh/id_ed25519_technitium.pub username@192.168.xxx.xx
+```
+
+### Verify key-only access **before disabling passwords**
+
+```bash
+ssh -i ~/.ssh/id_ed25519_technitium \
+  -o IdentitiesOnly=yes \
+  -o PreferredAuthentications=publickey \
+  -o PasswordAuthentication=no \
+  -o KbdInteractiveAuthentication=no \
+  username@192.168.xxx.xx
+
+whoami && hostname
+```
+
+The tested output was `username` and `test-technitium-github-setup`. A prompt for the **private key passphrase** is normal; it is not an SSH account-password prompt.
+
+### Set server-side SSH policy
+
+On the **Technitium server**, keep the original SSH session open and create:
+
+```bash
+sudo nano /etc/ssh/sshd_config.d/99-key-only.conf
+```
+
+Add:
+
+```ini
+PubkeyAuthentication yes
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+```
+
+Validate syntax and inspect effective settings **before reloading**:
+
+```bash
+sudo sshd -t
+sudo sshd -T | grep -E '^(permitrootlogin|pubkeyauthentication|passwordauthentication|kbdinteractiveauthentication) '
+```
+
+On the tested Ubuntu host, `passwordauthentication` **still showed `yes`** because `/etc/ssh/sshd_config.d/50-cloud-init.conf` contained `PasswordAuthentication yes`, which took precedence. Diagnose any override with:
+
+```bash
+sudo grep -RnEi '^[[:space:]]*(Include|PasswordAuthentication|Match)[[:space:]]' \
+  /etc/ssh/sshd_config /etc/ssh/sshd_config.d/
+```
+
+For this installation, `/etc/ssh/sshd_config.d/50-cloud-init.conf` was edited to read:
+
+```ini
+PasswordAuthentication no
+```
+
+> **Cloud-init caution:** A cloud-init-managed file may be regenerated during reprovisioning. Review the image's cloud-init settings and confirm key-only SSH persists after applicable provisioning changes. Do not assume editing this file permanently changes cloud-init's source configuration.
+
+Check again:
+
+```bash
+sudo sshd -t
+sudo sshd -T | grep -E '^(permitrootlogin|pubkeyauthentication|passwordauthentication|kbdinteractiveauthentication) '
+```
+
+Required output:
+
+```text
+permitrootlogin no
+pubkeyauthentication yes
+passwordauthentication no
+kbdinteractiveauthentication no
+```
+
+Apply the verified configuration:
+
+```bash
+sudo systemctl reload ssh
+sudo systemctl status ssh --no-pager
+```
+
+From the **management desktop**, open a **new terminal** and verify the dedicated key still works:
+
+```bash
+ssh -i ~/.ssh/id_ed25519_technitium \
+  -o IdentitiesOnly=yes \
+  -o PreferredAuthentications=publickey \
+  -o PasswordAuthentication=no \
+  -o KbdInteractiveAuthentication=no \
+  username@192.168.xxx.xx
+```
+
+Then test that the server rejects password-only authentication:
+
+```bash
+ssh -o PubkeyAuthentication=no \
+  -o PreferredAuthentications=password \
+  -o PasswordAuthentication=yes \
+  -o KbdInteractiveAuthentication=no \
+  -o NumberOfPasswordPrompts=1 \
+  username@192.168.xxx.xx
+```
+
+Expected: `Permission denied (publickey).` **Do not close your original session until the new key-based login succeeds.** SSH password authentication and `sudo` password prompts are separate; disabling the former does not disable the latter.
+
+Protect and securely back up `~/.ssh/id_ed25519_technitium` (the **private** key). Never commit it to GitHub.
+
+## Step 6 - November 16, 2026 Verification Record (Standalone Test Host Only)
+
+| Check | Test result |
+| --- | --- |
+| Technitium v15.6.2 service running | PASS |
+| Web UI administrator access restored | PASS |
+| UFW active, default deny inbound / allow outbound | PASS |
+| DNS from authorized desktop over UDP 53 | PASS |
+| DNS from authorized desktop over TCP 53 | PASS |
+| Wazuh agent established TCP 1514 connection | PASS |
+| AdGuard primary TCP 853 TLS/certificate test | PASS (reported) |
+| AdGuard secondary TCP 853 TLS/certificate test | PASS (reported) |
+| Actual Technitium DoT forwarding observed by packet capture | NOT TESTED |
+| Fresh SSH login after UFW enable | PASS |
+| Dedicated Ed25519 SSH key login after SSH reload | PASS |
+| SSH password-only login rejected | PASS |
+| Effective SSH root login disabled | PASS |
+| Reboot persistence of latest firewall/SSH changes | NOT TESTED |
+| Production primary/secondary cluster verification | NOT TESTED by these steps |
+
+> **Follow-up hardening:** Restrict HTTP management to trusted IPs and move to HTTPS where feasible; verify Wazuh and DNS after reboot; test actual DoT forwarding; and review cloud-init persistence. Do not mark these checks PASS until performed.
 
 ---
 
