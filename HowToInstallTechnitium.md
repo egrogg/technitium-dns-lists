@@ -1658,6 +1658,10 @@ sudo ufw allow 5380/tcp comment 'Technitium Web Management'
 ```
 
 > **Security warning:** The last command permits HTTP management on TCP 5380 from **any source that can route to the host**, including IPv6 where enabled. This matched the tested configuration at the user's request, but is **not recommended as a hardened default**. Prefer a management subnet or single trusted management IP, and use HTTPS for administration. For a new deployment, use instead: `sudo ufw allow from 192.168.xxx.xx to any port 5380 proto tcp comment 'Technitium Web Management'` (adjust the IP). Do not expose either administrative port directly to the internet.
+```bash
+sudo ufw allow from <Secondary IP> to any port 5380 proto tcp comment 'Technitium Web Management' # This is for Primary
+sudo ufw allow from <Primary IP> to any port 5380 proto tcp comment 'Technitium Web Management' # This is for Secondary
+```
 
 > **Port clarification:** On the tested v15.6.2 host, TCP **5380** was the HTTP Web UI and TCP **53443** was the HTTPS Web UI. **53443 is not exclusively a cluster port.** It was listening but **not opened in UFW** during this test. If you enable remote HTTPS management, restrict its inbound firewall rule to trusted administrators and verify the configured certificate. See [Maintenance-and-Hardening.md](Maintenance-and-Hardening.md).
 
