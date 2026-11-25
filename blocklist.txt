@@ -67,22 +67,22 @@ fireoscaptiveportal.com
 
 # Social media - other domains used by the same services
 # (confirm in the query logs while the app is running)
-# threads.com
-# tiktokv.com
-# tiktokcdn.com
-# cdninstagram.com
-# redd.it
-# redditmedia.com
-# redditstatic.com
+threads.com
+tiktokv.com
+tiktokcdn.com
+cdninstagram.com
+redd.it
+redditmedia.com
+redditstatic.com
 
 # VPN and proxy services (these also conflict with the Tailscale and
 # Twingate entries in the allowlist if you uncomment broad domains)
-# nordvpn.com
-# expressvpn.com
-# protonvpn.com
-# surfshark.com
-# windscribe.com
-# hide.me
+nordvpn.com
+expressvpn.com
+protonvpn.com
+surfshark.com
+windscribe.com
+hide.me
 
 # Consider also loading a maintained DoH/VPN/Tor/proxy bypass list from the
 # Hagezi dns-blocklists project instead of maintaining your own VPN list.
